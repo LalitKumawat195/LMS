@@ -1,0 +1,25 @@
+{
+  "name": "library-management-system",
+  "version": "1.0.0",
+  "description": "Library Automation & Book Tracking App",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "install-server": "cd server && npm install",
+    "install-client": "cd client && npm install",
+    "install-all": "npm run install-server && npm run install-client",
+    "build": "cd client && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/LMS.git"
+  },
+  "keywords": ["library", "management", "MERN", "books"],
+  "author": "Team LMS",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
