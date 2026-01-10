@@ -14,7 +14,8 @@ import {
   Icon,
   DefaultButton,
   Separator,
-  Checkbox
+  Checkbox,
+  Dropdown
 } from '@fluentui/react';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
@@ -24,7 +25,10 @@ const Register = () => {
     name: '', 
     email: '', 
     password: '', 
-    confirmPassword: '' 
+    confirmPassword: '',
+    role: 'Member',
+    department: '',
+    phone: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -163,7 +167,7 @@ const Register = () => {
     setLoading(true);
     setErrors({});
 
-    const result = await register(formData.name, formData.email, formData.password);
+    const result = await register(formData.name, formData.email, formData.password, formData.role, formData.department, formData.phone);
     
     if (result.success) {
       navigate('/dashboard');
@@ -327,6 +331,71 @@ const Register = () => {
                   ':focus-within': {
                     borderColor: '#0078d4'
                   }
+                },
+                field: {
+                  fontSize: '14px',
+                  color: isDark ? '#ffffff' : '#323130'
+                },
+                icon: {
+                  color: isDark ? '#a19f9d' : '#605e5c'
+                }
+              }}
+            />
+
+            <Dropdown
+              label="Role"
+              selectedKey={formData.role}
+              onChange={(_, option) => setFormData({ ...formData, role: option?.key || 'Member' })}
+              options={[
+                { key: 'Member', text: 'Library Member' },
+                { key: 'Librarian', text: 'Librarian' },
+                { key: 'Admin', text: 'Administrator' }
+              ]}
+              styles={{
+                dropdown: {
+                  borderRadius: '2px',
+                  border: `1px solid ${isDark ? '#484644' : '#d2d0ce'}`,
+                  background: isDark ? '#3b3a39' : '#ffffff',
+                  height: '32px'
+                }
+              }}
+            />
+
+            {formData.role === 'Member' && (
+              <TextField
+                label="Department (Optional)"
+                value={formData.department}
+                onChange={(_, value) => setFormData({ ...formData, department: value || '' })}
+                iconProps={{ iconName: 'BuildingClassic' }}
+                styles={{
+                  fieldGroup: { 
+                    borderRadius: '2px',
+                    border: `1px solid ${isDark ? '#484644' : '#d2d0ce'}`,
+                    background: isDark ? '#3b3a39' : '#ffffff',
+                    height: '32px'
+                  },
+                  field: {
+                    fontSize: '14px',
+                    color: isDark ? '#ffffff' : '#323130'
+                  },
+                  icon: {
+                    color: isDark ? '#a19f9d' : '#605e5c'
+                  }
+                }}
+              />
+            )}
+
+            <TextField
+              label="Phone (Optional)"
+              value={formData.phone}
+              onChange={(_, value) => setFormData({ ...formData, phone: value || '' })}
+              iconProps={{ iconName: 'Phone' }}
+              styles={{
+                fieldGroup: { 
+                  borderRadius: '2px',
+                  border: `1px solid ${isDark ? '#484644' : '#d2d0ce'}`,
+                  background: isDark ? '#3b3a39' : '#ffffff',
+                  height: '32px'
                 },
                 field: {
                   fontSize: '14px',

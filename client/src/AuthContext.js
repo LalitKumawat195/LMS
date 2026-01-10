@@ -15,7 +15,13 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       const userData = localStorage.getItem('user');
       if (userData) {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        // Ensure role exists, default to Member if not
+        if (!parsedUser.role) {
+          parsedUser.role = 'Member';
+          localStorage.setItem('user', JSON.stringify(parsedUser));
+        }
+        setUser(parsedUser);
       }
     }
     setLoading(false);
@@ -37,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name, email, password, role = 'Member', department = '', phone = '') => {
     try {
       // Basic validation
       if (!name.trim() || !email.trim() || !password.trim()) {
@@ -48,7 +54,14 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: 'Password must be at least 6 characters' };
       }
       
-      const response = await axios.post('/api/auth/register', { name: name.trim(), email: email.toLowerCase().trim(), password });
+      const response = await axios.post('/api/auth/register', { 
+        name: name.trim(), 
+        email: email.toLowerCase().trim(), 
+        password,
+        role,
+        department: department.trim(),
+        phone: phone.trim()
+      });
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
