@@ -13,10 +13,23 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Fetch fresh user data from server instead of using localStorage
+      fetchUserData();
+    }
+    setLoading(false);
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await axios.get('/api/user/profile');
+      setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+      // Fallback to localStorage if API fails
       const userData = localStorage.getItem('user');
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        // Ensure role exists, default to Member if not
         if (!parsedUser.role) {
           parsedUser.role = 'Member';
           localStorage.setItem('user', JSON.stringify(parsedUser));
@@ -24,8 +37,7 @@ export const AuthProvider = ({ children }) => {
         setUser(parsedUser);
       }
     }
-    setLoading(false);
-  }, []);
+  };
 
   const login = async (email, password) => {
     try {
@@ -35,7 +47,17 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      
+      // Fetch complete user profile including profile picture
+      try {
+        const profileResponse = await axios.get('/api/user/profile');
+        const completeUser = profileResponse.data;
+        setUser(completeUser);
+        localStorage.setItem('user', JSON.stringify(completeUser));
+      } catch (profileError) {
+        // Fallback to login response user data
+        setUser(user);
+      }
       
       return { success: true };
     } catch (error) {
@@ -84,6 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     login,
     register,
     logout,

@@ -163,71 +163,43 @@ const Login = () => {
       <div className={cardStyle}>
         <Stack tokens={{ childrenGap: 24 }}>
           <Stack horizontalAlign="center" tokens={{ childrenGap: 16 }}>
-            <div style={{
-              width: '72px',
-              height: '72px',
-              background: 'linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%)',
-              borderRadius: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '8px',
-              boxShadow: '0 8px 24px rgba(0, 120, 212, 0.25), 0 4px 12px rgba(0, 120, 212, 0.15)',
-              position: 'relative',
-              transition: 'all 0.3s ease',
-              '::before': {
-                content: '""',
-                position: 'absolute',
-                top: '-3px',
-                left: '-3px',
-                right: '-3px',
-                bottom: '-3px',
-                background: 'linear-gradient(135deg, rgba(0, 120, 212, 0.2), rgba(16, 110, 190, 0.15), rgba(0, 90, 158, 0.1))',
-                borderRadius: '19px',
-                zIndex: -1,
-                filter: 'blur(6px)'
-              },
-              '::after': {
-                content: '""',
-                position: 'absolute',
-                top: '2px',
-                left: '2px',
-                right: '2px',
-                bottom: '2px',
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent)',
-                borderRadius: '14px',
-                pointerEvents: 'none'
-              }
-            }}>
-              <Icon iconName="Library" styles={{ root: { color: 'white', fontSize: '36px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' } }} />
-            </div>
-            <Stack tokens={{ childrenGap: 4 }} horizontalAlign="center">
-              <Text styles={{ 
-                root: { 
-                  fontWeight: '700', 
-                  fontSize: '26px',
-                  background: 'linear-gradient(135deg, #0078d4 0%, #106ebe 70%, #005a9e 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  letterSpacing: '-0.8px',
-                  textAlign: 'center',
-                  filter: 'drop-shadow(0 1px 2px rgba(0,120,212,0.1))'
-                } 
-              }}>
-                Library Management
-              </Text>
-              <Text styles={{ 
-                root: { 
-                  fontWeight: '600', 
-                  fontSize: '18px',
-                  color: isDark ? '#e1dfdd' : '#484644',
-                  letterSpacing: '-0.2px',
-                  textAlign: 'center'
-                } 
-              }}>
-                System
-              </Text>
+            <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 12 }}>
+              <img 
+                src="http://localhost:5000/uploads/profiles/BookNest Digital Library-logo.png"
+                alt="BookNest Digital Library"
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  objectFit: 'contain',
+                  borderRadius: '8px'
+                }}
+              />
+              <Stack tokens={{ childrenGap: 4 }}>
+                <Text styles={{ 
+                  root: { 
+                    fontWeight: '700', 
+                    fontSize: '24px',
+                    background: 'linear-gradient(135deg, #0078d4 0%, #106ebe 70%, #005a9e 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    letterSpacing: '-0.6px'
+                  } 
+                }}>
+                  BookNest
+                </Text>
+                <Text styles={{ 
+                  root: { 
+                    fontWeight: '600', 
+                    fontSize: '16px',
+                    color: isDark ? '#e1dfdd' : '#484644',
+                    letterSpacing: '-0.2px',
+                    marginTop: '-4px'
+                  } 
+                }}>
+                  Digital Library
+                </Text>
+              </Stack>
             </Stack>
             <Text styles={{ 
               root: { 
@@ -429,7 +401,20 @@ const Login = () => {
                 textAlign: 'center'
               } 
             }}>
-              By signing in, you agree to our Terms of Service and Privacy Policy
+              By signing in, you agree to our{' '}
+              <Link to="/terms" style={{ color: '#0078d4', textDecoration: 'none' }}>Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy" style={{ color: '#0078d4', textDecoration: 'none' }}>Privacy Policy</Link>
+            </Text>
+            <Text styles={{ 
+              root: { 
+                color: isDark ? '#a19f9d' : '#605e5c',
+                fontSize: '11px',
+                textAlign: 'center',
+                marginTop: '8px'
+              } 
+            }}>
+              © 2026 BookNest Digital Library. All rights reserved.
             </Text>
           </Stack>
         </Stack>
