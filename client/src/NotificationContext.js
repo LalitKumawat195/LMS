@@ -37,8 +37,9 @@ export const NotificationProvider = ({ children }) => {
       {children}
       <div style={{
         position: 'fixed',
-        top: '20px',
-        right: '20px',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 9999,
         maxWidth: '400px'
       }}>

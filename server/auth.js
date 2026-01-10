@@ -43,7 +43,11 @@ router.post('/register', async (req, res) => {
     });
     await user.save();
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', {
+    const token = jwt.sign({ 
+      userId: user._id,
+      name: user.name,
+      role: user.role 
+    }, process.env.JWT_SECRET || 'secret', {
       expiresIn: '7d',
     });
 
@@ -57,7 +61,8 @@ router.post('/register', async (req, res) => {
         memberId: user.memberId,
         department: user.department,
         phone: user.phone,
-        status: user.status
+        status: user.status,
+        profilePicture: user.profilePicture
       },
     });
   } catch (error) {
@@ -86,7 +91,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', {
+    const token = jwt.sign({ 
+      userId: user._id,
+      name: user.name,
+      role: user.role 
+    }, process.env.JWT_SECRET || 'secret', {
       expiresIn: '7d',
     });
 
@@ -100,7 +109,8 @@ router.post('/login', async (req, res) => {
         memberId: user.memberId,
         department: user.department,
         phone: user.phone,
-        status: user.status
+        status: user.status,
+        profilePicture: user.profilePicture
       },
     });
   } catch (error) {

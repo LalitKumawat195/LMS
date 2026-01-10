@@ -27,6 +27,28 @@ const userSchema = new mongoose.Schema({
   },
   department: String,
   phone: String,
+  profilePicture: {
+    type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    maxlength: 500,
+    default: ''
+  },
+  dateOfBirth: Date,
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String
+  },
+  emergencyContact: {
+    name: String,
+    phone: String,
+    relationship: String
+  },
   status: {
     type: String,
     enum: ['Active', 'Inactive', 'Suspended'],
