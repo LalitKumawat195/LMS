@@ -12,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
+console.log('MongoDB URI:', process.env.MONGODB_URI);
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lms', {
   useNewUrlParser: true,
   useUnifiedTopology: true,

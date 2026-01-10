@@ -39,7 +39,16 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
-      const response = await axios.post('/api/auth/register', { name, email, password });
+      // Basic validation
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        return { success: false, message: 'All fields are required' };
+      }
+      
+      if (password.length < 6) {
+        return { success: false, message: 'Password must be at least 6 characters' };
+      }
+      
+      const response = await axios.post('/api/auth/register', { name: name.trim(), email: email.toLowerCase().trim(), password });
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
