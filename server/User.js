@@ -15,6 +15,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  role: {
+    type: String,
+    enum: ['Member', 'Librarian', 'Admin'],
+    default: 'Member'
+  },
+  memberId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  department: String,
+  phone: String,
+  status: {
+    type: String,
+    enum: ['Active', 'Inactive', 'Suspended'],
+    default: 'Active'
+  }
 }, {
   timestamps: true,
 });
@@ -22,6 +39,14 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Generate member ID for new members
+userSchema.pre('save', function(next) {
+  if (this.isNew && this.role === 'Member' && !this.memberId) {
+    this.memberId = 'MEM' + Date.now().toString().slice(-6);
+  }
   next();
 });
 
