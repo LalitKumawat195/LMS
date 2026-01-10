@@ -7,7 +7,7 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role, department, phone } = req.body;
     
     // Validation
     if (!name || !email || !password) {
@@ -36,7 +36,10 @@ router.post('/register', async (req, res) => {
     const user = new User({ 
       name: name.trim(), 
       email: email.toLowerCase().trim(), 
-      password 
+      password,
+      role: role || 'Member',
+      department: department?.trim() || '',
+      phone: phone?.trim() || ''
     });
     await user.save();
 
@@ -46,7 +49,16 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        memberId: user.memberId,
+        department: user.department,
+        phone: user.phone,
+        status: user.status
+      },
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -80,7 +92,16 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, name: user.name, email: user.email },
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        memberId: user.memberId,
+        department: user.department,
+        phone: user.phone,
+        status: user.status
+      },
     });
   } catch (error) {
     console.error('Login error:', error);

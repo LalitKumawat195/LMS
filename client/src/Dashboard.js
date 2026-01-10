@@ -837,21 +837,22 @@ const Dashboard = () => {
               }}
             />
 
-            <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
-              <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: '#0078d4',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '12px',
-                fontWeight: '600'
-              }}>
-                {(user?.name || 'A').charAt(0).toUpperCase()}
-              </div>
+          <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: user?.role === 'Admin' ? '#d13438' : user?.role === 'Librarian' ? '#107c10' : '#0078d4',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              {(user?.name || 'A').charAt(0).toUpperCase()}
+            </div>
+            <Stack tokens={{ childrenGap: 2 }}>
               <Text styles={{
                 root: {
                   fontWeight: '400',
@@ -861,7 +862,17 @@ const Dashboard = () => {
               }}>
                 {user?.name || 'Administrator'}
               </Text>
+              <Text styles={{
+                root: {
+                  color: user?.role === 'Admin' ? '#d13438' : user?.role === 'Librarian' ? '#107c10' : '#0078d4',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }
+              }}>
+                {user?.role || 'Member'}
+              </Text>
             </Stack>
+          </Stack>
 
             <IconButton
               iconProps={{ iconName: 'SignOut' }}
