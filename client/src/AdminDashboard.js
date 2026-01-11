@@ -24,6 +24,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
+import BooksManagement from './BooksManagement';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ const AdminDashboard = () => {
   const { success, warning, info, error } = useNotifications();
   const [selectedPivot, setSelectedPivot] = useState('overview');
   const [searchValue, setSearchValue] = useState('');
+  const [isBooksManagementOpen, setIsBooksManagementOpen] = useState(false);
 
   const [adminData, setAdminData] = useState({
     totalBooks: 2847,
@@ -283,6 +285,7 @@ const AdminDashboard = () => {
       >
         <PivotItem headerText="System Overview" itemKey="overview" />
         <PivotItem headerText="User Management" itemKey="users" />
+        <PivotItem headerText="Books Management" itemKey="books" />
         <PivotItem headerText="System Monitoring" itemKey="monitoring" />
         <PivotItem headerText="Analytics" itemKey="analytics" />
         <PivotItem headerText="Settings" itemKey="settings" />
@@ -352,80 +355,126 @@ const AdminDashboard = () => {
       )}
 
       {selectedPivot === 'users' && (
-        <Stack tokens={{ childrenGap: 16 }}>
-          <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              User Management
-            </Text>
-            <Stack horizontal tokens={{ childrenGap: 12 }}>
-              <SearchBox
-                placeholder="Search users..."
-                value={searchValue}
-                onChange={(e, value) => setSearchValue(value || '')}
-                styles={{ root: { width: '300px' } }}
-              />
-              <PrimaryButton
-                text="Add User"
-                iconProps={{ iconName: 'AddFriend' }}
-                onClick={() => success('Opening user creation form...')}
-              />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="People" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                User Management
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
             </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Advanced user management system with role-based access control and comprehensive user administration tools.
+            </Text>
           </Stack>
-          <div className={cardStyle}>
-            <DetailsList
-              items={userManagement}
-              columns={userColumns}
-              layoutMode={DetailsListLayoutMode.justified}
-              selectionMode={SelectionMode.none}
-            />
-          </div>
-        </Stack>
+        </div>
+      )}
+
+      {selectedPivot === 'books' && (
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Library" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Books Management
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              This comprehensive books management system is currently under development and will be available soon with full catalog management capabilities.
+            </Text>
+          </Stack>
+        </div>
       )}
 
       {selectedPivot === 'monitoring' && (
-        <Stack tokens={{ childrenGap: 16 }}>
-          <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-            System Alerts & Monitoring
-          </Text>
-          <div className={cardStyle}>
-            <DetailsList
-              items={systemAlerts}
-              columns={alertColumns}
-              layoutMode={DetailsListLayoutMode.justified}
-              selectionMode={SelectionMode.none}
-            />
-          </div>
-        </Stack>
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Health" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                System Monitoring
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Real-time system monitoring dashboard with alerts, performance metrics, and comprehensive system health tracking.
+            </Text>
+          </Stack>
+        </div>
       )}
 
       {selectedPivot === 'analytics' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              System Analytics
-            </Text>
-            <Text>Comprehensive analytics and reporting dashboard.</Text>
-            <Stack horizontal tokens={{ childrenGap: 16 }}>
-              <PrimaryButton text="Usage Analytics" onClick={() => success('Loading usage analytics...')} />
-              <DefaultButton text="Performance Metrics" onClick={() => info('Loading performance metrics...')} />
-              <DefaultButton text="Financial Reports" onClick={() => info('Loading financial reports...')} />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="BarChart4" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Analytics
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
             </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Advanced analytics dashboard with detailed reports, usage statistics, and comprehensive data visualization tools.
+            </Text>
           </Stack>
         </div>
       )}
 
       {selectedPivot === 'settings' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              System Configuration
-            </Text>
-            <Text>Configure system settings, policies, and parameters.</Text>
-            <Stack horizontal tokens={{ childrenGap: 16 }}>
-              <PrimaryButton text="Library Policies" onClick={() => success('Opening policy configuration...')} />
-              <DefaultButton text="System Parameters" onClick={() => info('Opening system parameters...')} />
-              <DefaultButton text="Backup Settings" onClick={() => info('Opening backup configuration...')} />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Settings" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                System Settings
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
             </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Comprehensive system configuration panel with library policies, parameters, and administrative settings.
+            </Text>
           </Stack>
         </div>
       )}
