@@ -42,6 +42,11 @@ const bookSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  issued: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   location: {
     type: String,
     trim: true

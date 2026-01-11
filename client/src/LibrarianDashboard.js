@@ -284,28 +284,7 @@ const LibrarianDashboard = () => {
       )}
 
       {selectedPivot === 'books' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="Library" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                Books Management
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              This comprehensive books management system is currently under development and will be available soon with full catalog management capabilities.
-            </Text>
-          </Stack>
-        </div>
+        <BooksManagement />
       )}
 
       {selectedPivot === 'overdue' && (
