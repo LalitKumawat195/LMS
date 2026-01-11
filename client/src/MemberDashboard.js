@@ -217,53 +217,101 @@ const MemberDashboard = () => {
 
       {/* Content */}
       {selectedPivot === 'browse' && (
-        <Stack tokens={{ childrenGap: 16 }}>
-          <SearchBox
-            placeholder="Search books by title, author, or category..."
-            value={searchValue}
-            onChange={(e, value) => setSearchValue(value || '')}
-            styles={{ root: { maxWidth: '400px' } }}
-          />
-          <div className={cardStyle}>
-            <DetailsList
-              items={availableBooks}
-              columns={browseColumns}
-              layoutMode={DetailsListLayoutMode.justified}
-              selectionMode={SelectionMode.none}
-            />
-          </div>
-        </Stack>
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Search" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Browse Books
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Advanced book browsing and search system with filters, categories, and personalized recommendations.
+            </Text>
+          </Stack>
+        </div>
       )}
 
       {selectedPivot === 'borrowed' && (
-        <div className={cardStyle}>
-          <DetailsList
-            items={borrowedBooks}
-            columns={bookColumns}
-            layoutMode={DetailsListLayoutMode.justified}
-            selectionMode={SelectionMode.none}
-          />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="BookAnswers" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                My Books
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Complete borrowed books management with renewal options, due dates, and return tracking.
+            </Text>
+          </Stack>
         </div>
       )}
 
       {selectedPivot === 'reservations' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              Your Reservations ({memberData.reservedBooks})
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Bookmark" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Reservations
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Book reservation system with queue management and availability notifications.
             </Text>
-            <Text>You have {memberData.reservedBooks} books reserved. You'll be notified when they become available.</Text>
           </Stack>
         </div>
       )}
 
       {selectedPivot === 'history' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              Borrowing History
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="History" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                History
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Complete borrowing history with reading statistics, favorite books, and personalized insights.
             </Text>
-            <Text>View your complete borrowing history and reading statistics.</Text>
           </Stack>
         </div>
       )}

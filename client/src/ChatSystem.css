@@ -1,0 +1,42 @@
+/* Microsoft Teams Scrollbar Styles */
+.ms-ScrollablePane--contentContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #c8c6c4 transparent;
+}
+
+.ms-ScrollablePane--contentContainer::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ms-ScrollablePane--contentContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ms-ScrollablePane--contentContainer::-webkit-scrollbar-thumb {
+  background-color: #c8c6c4;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.ms-ScrollablePane--contentContainer::-webkit-scrollbar-thumb:hover {
+  background-color: #a19f9d;
+}
+
+.ms-ScrollablePane--contentContainer::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark theme scrollbar */
+[data-theme="dark"] .ms-ScrollablePane--contentContainer {
+  scrollbar-color: #484644 transparent;
+}
+
+[data-theme="dark"] .ms-ScrollablePane--contentContainer::-webkit-scrollbar-thumb {
+  background-color: #484644;
+}
+
+[data-theme="dark"] .ms-ScrollablePane--contentContainer::-webkit-scrollbar-thumb:hover {
+  background-color: #605e5c;
+}

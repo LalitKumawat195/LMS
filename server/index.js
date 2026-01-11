@@ -8,6 +8,9 @@ const fs = require('fs');
 
 dotenv.config();
 
+// Fix Mongoose deprecation warning
+mongoose.set('strictQuery', false);
+
 const app = express();
 
 // Middleware
@@ -21,6 +24,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lms', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  ssl: true,
+  sslValidate: false,
+  tlsAllowInvalidCertificates: true
 });
 
 // Routes
@@ -30,6 +36,8 @@ app.use('/api/events', require('./events'));
 app.use('/api/notices', require('./notices'));
 app.use('/api/notifications', require('./notifications'));
 app.use('/api/tickets', require('./tickets'));
+app.use('/api/books', require('./books'));
+app.use('/api/chats', require('./chats'));
 app.use('/api/test', require('./test'));
 
 const PORT = process.env.PORT || 5000;

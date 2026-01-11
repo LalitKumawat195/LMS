@@ -27,6 +27,7 @@ import CalendarPanel from './CalendarPanel';
 import NoticePanel from './NoticePanel';
 import NotificationPanel from './NotificationPanel';
 import HelpDeskPanel from './HelpDeskPanel';
+import ChatSystem from './ChatSystem';
 import Footer from './Footer';
 
 const RoleDashboard = () => {
@@ -40,6 +41,7 @@ const RoleDashboard = () => {
   const [isNoticeOpen, setIsNoticeOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isHelpDeskOpen, setIsHelpDeskOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   // Load notifications and update when changed
@@ -353,6 +355,22 @@ const RoleDashboard = () => {
             />
 
             <IconButton
+              iconProps={{ iconName: 'Chat' }}
+              onClick={() => setIsChatOpen(true)}
+              title="Chat"
+              styles={{
+                root: {
+                  width: '32px',
+                  height: '32px',
+                  color: isDark ? '#ffffff' : '#323130',
+                  ':hover': {
+                    backgroundColor: isDark ? '#484644' : '#f3f2f1'
+                  }
+                }
+              }}
+            />
+
+            <IconButton
               iconProps={{ iconName: 'Settings' }}
               onClick={() => setIsSettingsOpen(true)}
               title="Settings"
@@ -470,6 +488,12 @@ const RoleDashboard = () => {
         isOpen={isHelpDeskOpen}
         onDismiss={() => setIsHelpDeskOpen(false)}
         user={user}
+      />
+
+      {/* Chat System */}
+      <ChatSystem
+        isOpen={isChatOpen}
+        onDismiss={() => setIsChatOpen(false)}
       />
 
       {/* Settings Panel */}

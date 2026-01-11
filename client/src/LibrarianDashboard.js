@@ -23,6 +23,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
+import BooksManagement from './BooksManagement';
 
 const LibrarianDashboard = () => {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ const LibrarianDashboard = () => {
   const { success, warning, info } = useNotifications();
   const [selectedPivot, setSelectedPivot] = useState('circulation');
   const [searchValue, setSearchValue] = useState('');
+  const [isBooksManagementOpen, setIsBooksManagementOpen] = useState(false);
 
   const [librarianData, setLibrarianData] = useState({
     todayIssues: 12,
@@ -250,6 +252,7 @@ const LibrarianDashboard = () => {
         onLinkClick={(item) => setSelectedPivot(item.props.itemKey)}
       >
         <PivotItem headerText="Circulation" itemKey="circulation" />
+        <PivotItem headerText="Books Management" itemKey="books" />
         <PivotItem headerText="Overdue Management" itemKey="overdue" />
         <PivotItem headerText="Member Services" itemKey="members" />
         <PivotItem headerText="Reports" itemKey="reports" />
@@ -280,57 +283,102 @@ const LibrarianDashboard = () => {
         </Stack>
       )}
 
-      {selectedPivot === 'overdue' && (
-        <Stack tokens={{ childrenGap: 16 }}>
-          <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              Overdue Items Management
+      {selectedPivot === 'books' && (
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Library" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Books Management
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              This comprehensive books management system is currently under development and will be available soon with full catalog management capabilities.
             </Text>
-            <DefaultButton
-              text="Send Bulk Notices"
-              iconProps={{ iconName: 'Mail' }}
-              onClick={() => warning('Bulk overdue notices sent to all members')}
-            />
           </Stack>
-          <div className={cardStyle}>
-            <DetailsList
-              items={overdueItems}
-              columns={overdueColumns}
-              layoutMode={DetailsListLayoutMode.justified}
-              selectionMode={SelectionMode.none}
-            />
-          </div>
-        </Stack>
+        </div>
+      )}
+
+      {selectedPivot === 'overdue' && (
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="Warning" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Overdue Management
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
+            </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Comprehensive overdue items management system with automated notifications and fine tracking capabilities.
+            </Text>
+          </Stack>
+        </div>
       )}
 
       {selectedPivot === 'members' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              Member Services
-            </Text>
-            <Text>Manage member accounts, registrations, and provide assistance.</Text>
-            <Stack horizontal tokens={{ childrenGap: 16 }}>
-              <PrimaryButton text="Register New Member" onClick={() => success('Opening member registration...')} />
-              <DefaultButton text="Member Directory" onClick={() => info('Loading member directory...')} />
-              <DefaultButton text="Membership Reports" onClick={() => info('Generating membership reports...')} />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="AddFriend" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Member Services
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
             </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Complete member management system with registration, directory, and comprehensive member service tools.
+            </Text>
           </Stack>
         </div>
       )}
 
       {selectedPivot === 'reports' && (
-        <div className={cardStyle}>
-          <Stack tokens={{ childrenGap: 16 }}>
-            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-              Circulation Reports
-            </Text>
-            <Text>Generate and view circulation statistics and reports.</Text>
-            <Stack horizontal tokens={{ childrenGap: 16 }}>
-              <PrimaryButton text="Daily Report" onClick={() => success('Generating daily circulation report...')} />
-              <DefaultButton text="Monthly Summary" onClick={() => info('Generating monthly summary...')} />
-              <DefaultButton text="Overdue Analysis" onClick={() => info('Generating overdue analysis...')} />
+        <div style={{
+          padding: '64px 32px',
+          textAlign: 'center',
+          background: isDark ? '#323130' : '#ffffff',
+          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
+          borderRadius: '8px'
+        }}>
+          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
+            <Icon iconName="BarChart4" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
+            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
+              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
+                Reports
+              </Text>
+              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
+                Coming Soon
+              </Text>
             </Stack>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
+              Comprehensive reporting system with circulation statistics, analytics, and detailed library operation reports.
+            </Text>
           </Stack>
         </div>
       )}
