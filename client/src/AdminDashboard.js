@@ -24,7 +24,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
-import BooksManagement from './BooksManagement';
+import UserManagement from './UserManagement';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -355,28 +355,7 @@ const AdminDashboard = () => {
       )}
 
       {selectedPivot === 'users' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="People" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                User Management
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Advanced user management system with role-based access control and comprehensive user administration tools.
-            </Text>
-          </Stack>
-        </div>
+        <UserManagement />
       )}
 
       {selectedPivot === 'books' && (

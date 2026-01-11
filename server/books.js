@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const Book = require('./Book');
+const Transaction = require('./Transaction');
 
 const router = express.Router();
 
@@ -126,6 +127,135 @@ router.get('/search/:query', verifyToken, async (req, res) => {
     }).sort({ createdAt: -1 });
     
     res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Issue book (Librarian/Admin only)
+router.post('/:id/issue', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const { memberId } = req.body;
+    
+    if (!memberId) {
+      return res.status(400).json({ message: 'Member ID is required' });
+    }
+
+    const book = await Book.findById(req.params.id);
+    
+    if (!book) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    if (book.available <= 0) {
+      return res.status(400).json({ message: 'No copies available for issue' });
+    }
+
+    // Create transaction record
+    const transaction = new Transaction({
+      bookId: book._id,
+      memberId,
+      type: 'issue',
+      processedBy: req.user.id
+    });
+    await transaction.save();
+
+    // Update book counts
+    book.available -= 1;
+    book.issued = (book.issued || 0) + 1;
+    await book.save();
+
+    res.json({ 
+      message: 'Book issued successfully', 
+      book,
+      transaction
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Return book (Librarian/Admin only)
+router.post('/:id/return', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const { memberId } = req.body;
+    
+    if (!memberId) {
+      return res.status(400).json({ message: 'Member ID is required' });
+    }
+
+    const book = await Book.findById(req.params.id);
+    
+    if (!book) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    // Find active transaction for this book and member
+    const activeTransaction = await Transaction.findOne({
+      bookId: book._id,
+      memberId,
+      status: 'active'
+    });
+
+    if (!activeTransaction) {
+      return res.status(400).json({ message: 'No active issue found for this member' });
+    }
+
+    // Create return transaction
+    const returnTransaction = new Transaction({
+      bookId: book._id,
+      memberId,
+      type: 'return',
+      processedBy: req.user.id
+    });
+    await returnTransaction.save();
+
+    // Update active transaction status
+    activeTransaction.status = 'returned';
+    await activeTransaction.save();
+
+    // Update book counts
+    book.available += 1;
+    book.issued = Math.max((book.issued || 0) - 1, 0);
+    await book.save();
+
+    res.json({ 
+      message: 'Book returned successfully', 
+      book,
+      transaction: returnTransaction
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get transaction history
+router.get('/transactions/history', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const transactions = await Transaction.find()
+      .populate('bookId', 'title author isbn')
+      .populate('processedBy', 'name')
+      .sort({ createdAt: -1 })
+      .limit(100);
+    
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get overdue books
+router.get('/overdue', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const overdueTransactions = await Transaction.find({
+      type: 'issue',
+      status: 'active',
+      dueDate: { $lt: new Date() }
+    })
+    .populate('bookId', 'title author isbn')
+    .sort({ dueDate: 1 });
+    
+    res.json(overdueTransactions);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

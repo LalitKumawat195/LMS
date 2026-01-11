@@ -66,10 +66,27 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Generate member ID for new members
-userSchema.pre('save', function(next) {
-  if (this.isNew && this.role === 'Member' && !this.memberId) {
-    this.memberId = 'MEM' + Date.now().toString().slice(-6);
+// Generate unique member ID for all users
+userSchema.pre('save', async function(next) {
+  if (this.isNew && !this.memberId) {
+    let prefix;
+    switch (this.role) {
+      case 'Admin': prefix = 'ADM'; break;
+      case 'Librarian': prefix = 'LIB'; break;
+      case 'Member': prefix = 'MEM'; break;
+      default: prefix = 'USR';
+    }
+    
+    let isUnique = false;
+    while (!isUnique) {
+      const randomNum = Math.floor(100000 + Math.random() * 900000);
+      const newId = prefix + randomNum;
+      const existing = await this.constructor.findOne({ memberId: newId });
+      if (!existing) {
+        this.memberId = newId;
+        isUnique = true;
+      }
+    }
   }
   next();
 });

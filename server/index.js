@@ -23,15 +23,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lms', {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
-  ssl: true,
-  sslValidate: false,
-  tlsAllowInvalidCertificates: true
+  useUnifiedTopology: true
 });
 
 // Routes
 app.use('/api/auth', require('./auth'));
 app.use('/api/user', require('./profile-complete'));
+app.use('/api/users', require('./user-management'));
 app.use('/api/events', require('./events'));
 app.use('/api/notices', require('./notices'));
 app.use('/api/notifications', require('./notifications'));
