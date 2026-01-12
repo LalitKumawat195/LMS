@@ -5,7 +5,7 @@ import Login from './Login';
 import Register from './Register';
 import ForgotPassword from './ForgotPassword';
 import ResetPassword from './ResetPassword';
-import MainLayout from './MainLayout';
+import RoleDashboard from './RoleDashboard';
 import TermsAndConditions from './TermsAndConditions';
 import PrivacyPolicy from './PrivacyPolicy';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -27,7 +27,7 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/dashboard" element={<ProtectedRoute><MainLayout /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute><RoleDashboard /></ProtectedRoute>} />
                 <Route path="/terms" element={<TermsAndConditions />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/" element={<Navigate to="/login" />} />
