@@ -15,6 +15,9 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  senderProfilePicture: {
+    type: String
+  },
   readBy: [{
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,6 +46,9 @@ const chatSchema = new mongoose.Schema({
     role: {
       type: String,
       required: true
+    },
+    profilePicture: {
+      type: String
     }
   }],
   messages: [messageSchema],

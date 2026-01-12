@@ -31,22 +31,23 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const chats = await Chat.find({
       'participants.userId': req.user.id
-    }).sort({ lastMessageAt: -1 });
+    }).populate('participants.userId', 'name role profilePicture').sort({ lastMessageAt: -1 });
 
     const formattedChats = chats.map(chat => {
-      const otherParticipant = chat.participants.find(p => p.userId.toString() !== req.user.id);
+      const otherParticipant = chat.participants.find(p => p.userId._id.toString() !== req.user.id);
       
       // Hide Admin from Members unless Admin initiated the chat
-      if (req.user.role === 'Member' && otherParticipant?.role === 'Admin') {
-        if (chat.initiatedBy.toString() !== otherParticipant.userId.toString()) {
+      if (req.user.role === 'Member' && otherParticipant?.userId.role === 'Admin') {
+        if (chat.initiatedBy.toString() !== otherParticipant.userId._id.toString()) {
           return null;
         }
       }
       
       return {
         id: chat._id,
-        name: otherParticipant?.name || 'Unknown User',
-        role: otherParticipant?.role || 'Member',
+        name: otherParticipant?.userId.name || otherParticipant?.name || 'Unknown User',
+        role: otherParticipant?.userId.role || otherParticipant?.role || 'Member',
+        profilePicture: otherParticipant?.userId.profilePicture || otherParticipant?.profilePicture,
         lastMessage: chat.lastMessage,
         lastMessageAt: chat.lastMessageAt
       };
@@ -96,12 +97,14 @@ router.post('/', verifyToken, async (req, res) => {
         {
           userId: req.user.id,
           name: currentUser.name,
-          role: currentUser.role
+          role: currentUser.role,
+          profilePicture: currentUser.profilePicture
         },
         {
           userId: participantId,
           name: participant.name,
-          role: participant.role
+          role: participant.role,
+          profilePicture: participant.profilePicture
         }
       ],
       initiatedBy: req.user.id
@@ -122,7 +125,7 @@ router.post('/', verifyToken, async (req, res) => {
 // Get messages for a chat
 router.get('/:chatId/messages', verifyToken, async (req, res) => {
   try {
-    const chat = await Chat.findById(req.params.chatId);
+    const chat = await Chat.findById(req.params.chatId).populate('messages.senderId', 'profilePicture');
     
     if (!chat) {
       return res.status(404).json({ message: 'Chat not found' });
@@ -134,7 +137,13 @@ router.get('/:chatId/messages', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    res.json(chat.messages);
+    // Add profile pictures to messages
+    const messagesWithProfiles = chat.messages.map(msg => ({
+      ...msg.toObject(),
+      senderProfilePicture: msg.senderId?.profilePicture || msg.senderProfilePicture
+    }));
+
+    res.json(messagesWithProfiles);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -157,10 +166,13 @@ router.post('/:chatId/messages', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
+    const currentUser = await User.findById(req.user.id);
+    
     const message = {
       content,
       senderId: req.user.id,
-      senderName: req.user.name
+      senderName: req.user.name,
+      senderProfilePicture: currentUser.profilePicture
     };
 
     chat.messages.push(message);
@@ -183,7 +195,7 @@ router.get('/users/all', verifyToken, async (req, res) => {
     if (req.user.role === 'Admin') {
       // Admin can see all users
       users = await User.find({ _id: { $ne: req.user.id } })
-        .select('name role')
+        .select('name role profilePicture')
         .sort({ name: 1 });
     } else if (req.user.role === 'Librarian') {
       // Librarian can see Admin and Members, but not other Librarians
@@ -191,7 +203,7 @@ router.get('/users/all', verifyToken, async (req, res) => {
         _id: { $ne: req.user.id },
         role: { $in: ['Admin', 'Member'] }
       })
-        .select('name role')
+        .select('name role profilePicture')
         .sort({ name: 1 });
     } else {
       // Members can see Librarians and other Members, but not Admin
@@ -199,7 +211,7 @@ router.get('/users/all', verifyToken, async (req, res) => {
         _id: { $ne: req.user.id },
         role: { $in: ['Librarian', 'Member'] }
       })
-        .select('name role')
+        .select('name role profilePicture')
         .sort({ name: 1 });
     }
     
