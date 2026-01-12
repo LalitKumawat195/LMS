@@ -69,19 +69,41 @@ const BooksManagement = () => {
   ];
 
   useEffect(() => {
-    const savedBooks = localStorage.getItem('lms_books');
-    const savedTransactions = localStorage.getItem('lms_transactions');
-    
-    if (savedBooks) {
-      try {
-        const parsedBooks = JSON.parse(savedBooks);
-        setBooks(parsedBooks);
-      } catch (e) {
-        console.log('Error parsing saved books');
-        setBooks([]);
+    fetchBooks();
+  }, []);
+
+  const fetchBooks = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/books', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBooks(data);
+      } else {
+        // Fallback to sample data if API fails
+        const sampleBooks = [
+          {
+            _id: '1',
+            title: 'Sample Book 1',
+            author: 'Sample Author 1',
+            isbn: '123-456-789',
+            category: 'Fiction',
+            publisher: 'Sample Publisher',
+            year: '2023',
+            copies: 5,
+            available: 3,
+            issued: 2,
+            location: 'A1-B2'
+          }
+        ];
+        setBooks(sampleBooks);
       }
-    } else {
-      // Initialize with sample data if no saved books
+    } catch (err) {
+      console.log('API not available, using sample data');
       const sampleBooks = [
         {
           _id: '1',
@@ -99,55 +121,28 @@ const BooksManagement = () => {
       ];
       setBooks(sampleBooks);
     }
-    
-    if (savedTransactions) {
-      try {
-        setTransactions(JSON.parse(savedTransactions));
-      } catch (e) {
-        console.log('Error parsing saved transactions');
-        setTransactions([]);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('lms_books', JSON.stringify(books));
-  }, [books]);
-
-  useEffect(() => {
-    localStorage.setItem('lms_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    setLoading(false);
+  };
 
   useEffect(() => {
     setFilteredBooks(books);
   }, [books]);
+
+  // Remove localStorage effects since we're using MongoDB
+  // useEffect(() => {
+  //   localStorage.setItem('lms_books', JSON.stringify(books));
+  // }, [books]);
+
+  // useEffect(() => {
+  //   localStorage.setItem('lms_transactions', JSON.stringify(transactions));
+  // }, [transactions]);
 
   const handleSearch = (filtered, query) => {
     setFilteredBooks(filtered);
     setSearchValue(query);
   };
 
-  const loadBooks = async () => {
-    // Don't overwrite existing books, just try to sync with API
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/books', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Only update if we have no local books or if user explicitly wants to sync
-        if (books.length === 0) {
-          setBooks(data);
-        }
-      }
-    } catch (err) {
-      console.log('API not available, keeping local data');
-    }
-    setLoading(false);
-  };
+
 
   const addBook = async () => {
     if (!newBook.title || !newBook.author || !newBook.isbn) {
@@ -155,43 +150,101 @@ const BooksManagement = () => {
       return;
     }
 
-    const newBookWithId = {
-      ...newBook,
-      _id: Date.now().toString(),
-      available: newBook.copies,
-      issued: 0
-    };
-    
-    setBooks([...books, newBookWithId]);
-    setNewBook({
-      title: '',
-      author: '',
-      isbn: '',
-      category: 'Fiction',
-      publisher: '',
-      year: '',
-      copies: 1,
-      location: ''
-    });
-    setShowAddDialog(false);
-    success('Book added successfully');
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/books', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...newBook,
+          available: newBook.copies,
+          issued: 0
+        })
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        fetchBooks();
+        setNewBook({
+          title: '',
+          author: '',
+          isbn: '',
+          category: 'Fiction',
+          publisher: '',
+          year: '',
+          copies: 1,
+          location: ''
+        });
+        setShowAddDialog(false);
+        success('Book added successfully');
+      } else {
+        error(data.message || 'Failed to add book');
+      }
+    } catch (err) {
+      error('Failed to add book');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateBook = async () => {
-    setBooks(books.map(book => book._id === selectedBook._id ? selectedBook : book));
-    setShowEditDialog(false);
-    setSelectedBook(null);
-    success('Book updated successfully');
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/books/${selectedBook._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(selectedBook)
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        fetchBooks();
+        setShowEditDialog(false);
+        setSelectedBook(null);
+        success('Book updated successfully');
+      } else {
+        error(data.message || 'Failed to update book');
+      }
+    } catch (err) {
+      error('Failed to update book');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteBook = async (bookId) => {
     if (window.confirm('Are you sure you want to delete this book?')) {
-      setBooks(books.filter(book => book._id !== bookId));
-      success('Book deleted successfully');
+      setLoading(true);
+      try {
+        const response = await fetch(`http://localhost:5000/api/books/${bookId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          fetchBooks();
+          success('Book deleted successfully');
+        } else {
+          error(data.message || 'Failed to delete book');
+        }
+      } catch (err) {
+        error('Failed to delete book');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const issueBook = () => {
+  const issueBook = async () => {
     if (!memberInfo.memberId) {
       error('Please enter Member ID');
       return;
@@ -205,30 +258,32 @@ const BooksManagement = () => {
       return;
     }
 
-    const transaction = {
-      _id: Date.now().toString(),
-      bookId: selectedBook._id,
-      bookTitle: selectedBook.title,
-      memberId: memberInfo.memberId,
-      memberName: memberInfo.memberName || 'Member',
-      type: 'issue',
-      issueDate: new Date().toISOString(),
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      processedBy: user?.name || 'Librarian'
-    };
-
-    setBooks(books.map(book => 
-      book._id === selectedBook._id 
-        ? { ...book, available: book.available - 1, issued: (book.issued || 0) + 1 }
-        : book
-    ));
-    
-    setTransactions([...transactions, transaction]);
-    setShowIssueDialog(false);
-    setSelectedBook(null);
-    setMemberInfo({ memberId: '', memberName: '' });
-    success(`Book "${selectedBook.title}" issued to ${memberInfo.memberId}`);
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/books/${selectedBook._id}/issue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ memberId: memberInfo.memberId })
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        fetchBooks();
+        setShowIssueDialog(false);
+        setSelectedBook(null);
+        setMemberInfo({ memberId: '', memberName: '' });
+        success(`Book "${selectedBook.title}" issued to ${memberInfo.memberId}`);
+      } else {
+        error(data.message || 'Failed to issue book');
+      }
+    } catch (err) {
+      error('Failed to issue book');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const returnBook = async () => {
@@ -237,66 +292,32 @@ const BooksManagement = () => {
       return;
     }
 
-    // Find active transaction for this book and member
-    const activeTransaction = transactions.find(t => 
-      t.bookId === selectedBook._id && 
-      t.memberId === memberInfo.memberId && 
-      t.status === 'active'
-    );
-
-    if (!activeTransaction) {
-      error('No active issue found for this member and book');
-      return;
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/books/${selectedBook._id}/return`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ memberId: memberInfo.memberId })
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        fetchBooks();
+        setShowReturnDialog(false);
+        setMemberInfo({ memberId: '', memberName: '' });
+        setSelectedBook(null);
+        success(`Book returned from member ${memberInfo.memberId}`);
+      } else {
+        error(data.message || 'Failed to return book');
+      }
+    } catch (err) {
+      error('Failed to return book');
+    } finally {
+      setLoading(false);
     }
-
-    // Calculate fine if overdue
-    const returnDate = new Date();
-    const dueDate = new Date(activeTransaction.dueDate);
-    const isOverdue = returnDate > dueDate;
-    const daysOverdue = isOverdue ? Math.ceil((returnDate - dueDate) / (1000 * 60 * 60 * 24)) : 0;
-    const fine = daysOverdue * 2; // $2 per day fine
-
-    // Create return transaction
-    const returnTransaction = {
-      _id: Date.now().toString(),
-      bookId: selectedBook._id,
-      bookTitle: selectedBook.title,
-      memberId: memberInfo.memberId,
-      memberName: memberInfo.memberName || activeTransaction.memberName,
-      type: 'return',
-      returnDate: returnDate.toISOString(),
-      originalIssueDate: activeTransaction.issueDate,
-      dueDate: activeTransaction.dueDate,
-      daysOverdue,
-      fine,
-      status: 'completed',
-      processedBy: user?.name || 'Librarian'
-    };
-
-    // Update active transaction status
-    const updatedTransactions = transactions.map(t => 
-      t._id === activeTransaction._id 
-        ? { ...t, status: 'returned', returnDate: returnDate.toISOString(), fine }
-        : t
-    );
-    updatedTransactions.push(returnTransaction);
-
-    const updatedBooks = books.map(book => 
-      book._id === selectedBook._id 
-        ? { ...book, available: book.available + 1, issued: Math.max((book.issued || 0) - 1, 0) }
-        : book
-    );
-    
-    setBooks(updatedBooks);
-    setTransactions(updatedTransactions);
-    setShowReturnDialog(false);
-    setMemberInfo({ memberId: '', memberName: '' });
-    setSelectedBook(null);
-    
-    const message = fine > 0 
-      ? `Book returned from member ${memberInfo.memberId}. Fine: $${fine} (${daysOverdue} days overdue)`
-      : `Book returned from member ${memberInfo.memberId}. No fine.`;
-    success(message);
   };
 
   const viewMemberHistory = () => {
@@ -565,11 +586,8 @@ const BooksManagement = () => {
       text: 'Refresh',
       iconProps: { iconName: 'Refresh' },
       onClick: () => {
-        const savedBooks = localStorage.getItem('lms_books');
-        const savedTransactions = localStorage.getItem('lms_transactions');
-        if (savedBooks) setBooks(JSON.parse(savedBooks));
-        if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-        success('Data refreshed from local storage');
+        fetchBooks();
+        success('Data refreshed from database');
       }
     },
     {

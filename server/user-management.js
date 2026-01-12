@@ -165,7 +165,8 @@ router.get('/search/:query', async (req, res) => {
         { name: { $regex: query, $options: 'i' } },
         { email: { $regex: query, $options: 'i' } },
         { role: { $regex: query, $options: 'i' } },
-        { department: { $regex: query, $options: 'i' } }
+        { department: { $regex: query, $options: 'i' } },
+        { memberId: { $regex: query, $options: 'i' } }
       ]
     }).select('-password');
     

@@ -23,7 +23,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/lms', {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000
 });
 
 // Routes
@@ -37,6 +39,10 @@ app.use('/api/tickets', require('./tickets'));
 app.use('/api/books', require('./books'));
 app.use('/api/chats', require('./chats'));
 app.use('/api/test', require('./test'));
+
+mongoose.connection.on('connected', async () => {
+  console.log('Connected to MongoDB');
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
