@@ -44,6 +44,50 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// Get overdue books (must be before /:id route)
+router.get('/overdue', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const Payment = require('./Payment');
+    
+    // First update overdue status
+    await Transaction.updateMany(
+      {
+        type: 'issue',
+        status: 'active',
+        dueDate: { $lt: new Date() }
+      },
+      { status: 'overdue' }
+    );
+
+    // Get all paid transaction IDs
+    const paidTransactions = await Payment.find().distinct('transactionId');
+
+    const overdueTransactions = await Transaction.find({
+      type: 'issue',
+      status: 'overdue',
+      _id: { $nin: paidTransactions } // Exclude paid transactions
+    })
+    .populate('bookId', 'title author isbn category')
+    .populate('processedBy', 'name')
+    .sort({ dueDate: 1 });
+    
+    // Calculate current fine for each overdue transaction
+    const transactionsWithFines = overdueTransactions.map(transaction => {
+      const overdueDays = Math.ceil((new Date() - new Date(transaction.dueDate)) / (1000 * 60 * 60 * 24));
+      const currentFine = overdueDays * 10;
+      return {
+        ...transaction.toObject(),
+        currentFine,
+        overdueDays
+      };
+    });
+    
+    res.json(transactionsWithFines);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get book by ID
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -232,10 +276,12 @@ router.post('/:id/issue', verifyToken, checkLibrarianOrAdmin, async (req, res) =
     }
 
     // Create transaction record
+    const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
     const transaction = new Transaction({
       bookId: book._id,
       memberId,
       type: 'issue',
+      dueDate: dueDate,
       processedBy: req.user.id
     });
     await transaction.save();
@@ -282,10 +328,17 @@ router.post('/:id/return', verifyToken, checkLibrarianOrAdmin, async (req, res) 
     }
 
     // Create return transaction
+    const returnDate = new Date();
+    const overdueDays = returnDate > new Date(activeTransaction.dueDate) ? 
+      Math.ceil((returnDate - new Date(activeTransaction.dueDate)) / (1000 * 60 * 60 * 24)) : 0;
+    const fine = overdueDays * 10; // ₹10 per day
+
     const returnTransaction = new Transaction({
       bookId: book._id,
       memberId,
       type: 'return',
+      dueDate: activeTransaction.dueDate, // Copy due date from issue transaction
+      fine: fine,
       processedBy: req.user.id
     });
     await returnTransaction.save();
@@ -302,7 +355,9 @@ router.post('/:id/return', verifyToken, checkLibrarianOrAdmin, async (req, res) 
     res.json({ 
       message: 'Book returned successfully', 
       book,
-      transaction: returnTransaction
+      transaction: returnTransaction,
+      fine: fine,
+      overdueDays: overdueDays
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -312,6 +367,16 @@ router.post('/:id/return', verifyToken, checkLibrarianOrAdmin, async (req, res) 
 // Get transaction history
 router.get('/transactions/history', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
   try {
+    // Update overdue status first
+    await Transaction.updateMany(
+      {
+        type: 'issue',
+        status: 'active',
+        dueDate: { $lt: new Date() }
+      },
+      { status: 'overdue' }
+    );
+
     const transactions = await Transaction.find()
       .populate('bookId', 'title author isbn')
       .populate('processedBy', 'name')
@@ -319,23 +384,6 @@ router.get('/transactions/history', verifyToken, checkLibrarianOrAdmin, async (r
       .limit(100);
     
     res.json(transactions);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Get overdue books
-router.get('/overdue', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
-  try {
-    const overdueTransactions = await Transaction.find({
-      type: 'issue',
-      status: 'active',
-      dueDate: { $lt: new Date() }
-    })
-    .populate('bookId', 'title author isbn')
-    .sort({ dueDate: 1 });
-    
-    res.json(overdueTransactions);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -404,6 +452,50 @@ router.post('/insert-sample', verifyToken, async (req, res) => {
 
     const result = await Book.insertMany(books, { ordered: false });
     res.json({ message: `${result.length} books inserted successfully`, books: result });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Add sample overdue books (Admin only)
+router.post('/sample-overdue', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    // Get existing books and create sample overdue transactions
+    const books = await Book.find().limit(10);
+    
+    if (books.length === 0) {
+      return res.status(400).json({ message: 'No books found. Add books first.' });
+    }
+
+    const sampleTransactions = [];
+    
+    for (let i = 0; i < Math.min(10, books.length); i++) {
+      const daysOverdue = Math.floor(Math.random() * 30) + 1; // 1-30 days overdue
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() - daysOverdue);
+      
+      const issueDate = new Date(dueDate);
+      issueDate.setDate(issueDate.getDate() - 14); // 14 days before due date
+      
+      const transaction = new Transaction({
+        bookId: books[i]._id,
+        memberId: `MEM${540924 + i}`,
+        type: 'issue',
+        issueDate: issueDate,
+        dueDate: dueDate,
+        status: 'overdue',
+        processedBy: req.user.id
+      });
+      
+      sampleTransactions.push(transaction);
+    }
+
+    await Transaction.insertMany(sampleTransactions);
+    
+    res.json({ 
+      message: `${sampleTransactions.length} sample overdue transactions created`,
+      transactions: sampleTransactions 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -21,16 +21,10 @@ const transactionSchema = new mongoose.Schema({
     default: Date.now
   },
   dueDate: {
-    type: Date,
-    required: function() {
-      return this.type === 'issue';
-    }
+    type: Date
   },
   returnDate: {
-    type: Date,
-    required: function() {
-      return this.type === 'return';
-    }
+    type: Date
   },
   fine: {
     type: Number,
@@ -51,16 +45,45 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Set due date to 14 days from issue date
+// Set due date to 7 days from issue date
 transactionSchema.pre('save', function(next) {
-  if (this.isNew && this.type === 'issue') {
-    this.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+  if (this.type === 'issue' && !this.dueDate) {
+    this.dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
   }
   if (this.type === 'return') {
     this.returnDate = new Date();
     this.status = 'returned';
+    
+    // Calculate fine for overdue books (₹10 per day)
+    if (this.dueDate && this.returnDate > this.dueDate) {
+      const overdueDays = Math.ceil((this.returnDate - this.dueDate) / (1000 * 60 * 60 * 24));
+      this.fine = overdueDays * 10; // ₹10 per day
+    }
   }
   next();
+});
+
+// Update overdue status automatically
+transactionSchema.pre('find', function() {
+  this.model.updateMany(
+    {
+      type: 'issue',
+      status: 'active',
+      dueDate: { $lt: new Date() }
+    },
+    { status: 'overdue' }
+  ).exec();
+});
+
+transactionSchema.pre('findOne', function() {
+  this.model.updateMany(
+    {
+      type: 'issue',
+      status: 'active',
+      dueDate: { $lt: new Date() }
+    },
+    { status: 'overdue' }
+  ).exec();
 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

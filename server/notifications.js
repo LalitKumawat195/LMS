@@ -85,10 +85,6 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // Create notification (system use)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    
     const notification = new Notification({
       ...req.body,
       sender: req.user.name

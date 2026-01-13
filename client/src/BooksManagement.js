@@ -22,7 +22,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
-import AdvancedSearch from './AdvancedSearch';
+import TransactionHistoryPage from './TransactionHistoryPage';
 
 const BooksManagement = () => {
   const { user } = useAuth();
@@ -41,12 +41,16 @@ const BooksManagement = () => {
   const [showQuickScanDialog, setShowQuickScanDialog] = useState(false);
   const [showBulkIssueDialog, setShowBulkIssueDialog] = useState(false);
   const [showReserveDialog, setShowReserveDialog] = useState(false);
+  const [showOverdueDialog, setShowOverdueDialog] = useState(false);
   const [memberInfo, setMemberInfo] = useState({ memberId: '', memberName: '' });
   const [transactions, setTransactions] = useState([]);
   const [scanMode, setScanMode] = useState('issue'); // 'issue' or 'return'
   const [scanData, setScanData] = useState({ bookId: '', memberId: '' });
   const [bulkIssueData, setBulkIssueData] = useState({ memberId: '', memberName: '', bookIds: '' });
   const [reserveInfo, setReserveInfo] = useState({ memberId: '', memberName: '' });
+  const [showTransactionsPage, setShowTransactionsPage] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [newBook, setNewBook] = useState({
     title: '',
     author: '',
@@ -140,6 +144,7 @@ const BooksManagement = () => {
   const handleSearch = (filtered, query) => {
     setFilteredBooks(filtered);
     setSearchValue(query);
+    setCurrentPage(1); // Reset to first page on search
   };
 
 
@@ -309,7 +314,8 @@ const BooksManagement = () => {
         setShowReturnDialog(false);
         setMemberInfo({ memberId: '', memberName: '' });
         setSelectedBook(null);
-        success(`Book returned from member ${memberInfo.memberId}`);
+        const fineMessage = data.fine > 0 ? ` Fine: ₹${data.fine}` : '';
+        success(`Book returned from member ${memberInfo.memberId}${fineMessage}`);
       } else {
         error(data.message || 'Failed to return book');
       }
@@ -467,6 +473,10 @@ const BooksManagement = () => {
     success(message);
   };
 
+  const viewTransactions = () => {
+    setShowTransactionsPage(true);
+  };
+
   const reserveBook = async () => {
     if (!reserveInfo.memberId || !selectedBook) {
       error('Please provide member ID and select a book');
@@ -490,6 +500,24 @@ const BooksManagement = () => {
     setReserveInfo({ memberId: '', memberName: '' });
     setSelectedBook(null);
     success(`Book "${selectedBook.title}" reserved for member ${reserveInfo.memberId}`);
+  };
+
+  const fetchOverdueBooks = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/books/overdue', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setShowOverdueDialog(true);
+      } else {
+        error('Failed to fetch overdue books');
+      }
+    } catch (err) {
+      error('Failed to fetch overdue books');
+    }
   };
 
 
@@ -594,16 +622,7 @@ const BooksManagement = () => {
       key: 'transactions',
       text: 'View Transactions',
       iconProps: { iconName: 'Timeline' },
-      onClick: () => {
-        const activeIssues = transactions.filter(t => t.status === 'active').length;
-        const overdueBooks = transactions.filter(t => {
-          if (t.status !== 'active') return false;
-          return new Date() > new Date(t.dueDate);
-        }).length;
-        const totalFines = transactions.reduce((sum, t) => sum + (t.fine || 0), 0);
-        
-        alert(`Transaction Summary:\nActive Issues: ${activeIssues}\nOverdue Books: ${overdueBooks}\nTotal Fines Collected: $${totalFines}`);
-      }
+      onClick: viewTransactions
     },
     {
       key: 'quickScan',
@@ -619,6 +638,23 @@ const BooksManagement = () => {
     }
   ];
 
+  if (showTransactionsPage) {
+    return <TransactionHistoryPage onBack={() => setShowTransactionsPage(false)} />;
+  }
+
+  // Pagination logic
+  const booksToDisplay = searchValue ? 
+    books.filter(book => 
+      book.title?.toLowerCase().includes(searchValue.toLowerCase()) ||
+      book.author?.toLowerCase().includes(searchValue.toLowerCase()) ||
+      book.isbn?.includes(searchValue)
+    ) : books;
+  const totalItems = booksToDisplay.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBooks = booksToDisplay.slice(startIndex, endIndex);
+
   return (
     <Stack tokens={{ childrenGap: 20 }} styles={{ root: { padding: 20 } }}>
       <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold } }}>
@@ -627,10 +663,17 @@ const BooksManagement = () => {
       
       <CommandBar items={commandBarItems} />
       
-      <AdvancedSearch 
-        onSearch={handleSearch}
-        books={books}
-      />
+      <Stack horizontal tokens={{ childrenGap: 10 }} verticalAlign="end">
+        <SearchBox
+          placeholder="Search books by title, author, or ISBN..."
+          value={searchValue}
+          onChange={(_, value) => {
+            setSearchValue(value || '');
+            setCurrentPage(1);
+          }}
+          styles={{ root: { minWidth: 300 } }}
+        />
+      </Stack>
       
       <Stack horizontal tokens={{ childrenGap: 8 }}>
         <TextField
@@ -648,8 +691,31 @@ const BooksManagement = () => {
       
       {loading && <Spinner size={SpinnerSize.large} label="Loading books..." />}
       
+      <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+        <Text styles={{ root: { marginBottom: 8 } }}>
+          Showing {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} books
+        </Text>
+        {totalPages > 1 && (
+          <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+            <IconButton
+              iconProps={{ iconName: 'ChevronLeft' }}
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(currentPage - 1)}
+              title="Previous page"
+            />
+            <Text>{currentPage} of {totalPages}</Text>
+            <IconButton
+              iconProps={{ iconName: 'ChevronRight' }}
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(currentPage + 1)}
+              title="Next page"
+            />
+          </Stack>
+        )}
+      </Stack>
+      
       <DetailsList
-        items={filteredBooks.length > 0 || searchValue ? filteredBooks : books}
+        items={paginatedBooks}
         columns={bookColumns}
         layoutMode={DetailsListLayoutMode.justified}
         selectionMode={SelectionMode.none}
@@ -1000,6 +1066,30 @@ const BooksManagement = () => {
         <DialogFooter>
           <PrimaryButton onClick={reserveBook} text="Reserve Book" />
           <DefaultButton onClick={() => setShowReserveDialog(false)} text="Cancel" />
+        </DialogFooter>
+      </Dialog>
+
+      {/* Overdue Books Dialog */}
+      <Dialog
+        hidden={!showOverdueDialog}
+        onDismiss={() => setShowOverdueDialog(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: 'Overdue Books Management'
+        }}
+        modalProps={{ isBlocking: false }}
+        styles={{ main: { minWidth: 800 } }}
+      >
+        <Stack tokens={{ childrenGap: 15 }}>
+          <Text variant="medium">Total Overdue Books: 0</Text>
+          <Stack styles={{ root: { maxHeight: 400, overflowY: 'auto' } }}>
+            <Text styles={{ root: { textAlign: 'center', padding: 20, color: '#107c10' } }}>
+              No overdue books found!
+            </Text>
+          </Stack>
+        </Stack>
+        <DialogFooter>
+          <DefaultButton onClick={() => setShowOverdueDialog(false)} text="Close" />
         </DialogFooter>
       </Dialog>
     </Stack>

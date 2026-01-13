@@ -14,7 +14,9 @@ import {
   PrimaryButton,
   DefaultButton,
   TextField,
-  Dropdown
+  Dropdown,
+  Panel,
+  PanelType
 } from '@fluentui/react';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
@@ -23,6 +25,7 @@ const OverdueManagement = () => {
   const { user } = useAuth();
   const { success, error } = useNotifications();
   const [transactions, setTransactions] = useState([]);
+  const [members, setMembers] = useState([]);
   const [books, setBooks] = useState([]);
   const [showFineDialog, setShowFineDialog] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -42,25 +45,89 @@ const OverdueManagement = () => {
   const [reportPeriod, setReportPeriod] = useState('monthly');
 
   useEffect(() => {
-    const savedTransactions = localStorage.getItem('lms_transactions');
-    const savedBooks = localStorage.getItem('lms_books');
-    const savedPayments = localStorage.getItem('lms_fine_payments');
-    
-    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-    if (savedBooks) setBooks(JSON.parse(savedBooks));
-    if (savedPayments) setFinePayments(JSON.parse(savedPayments));
+    fetchOverdueBooks();
+    loadPaymentHistory();
   }, []);
+
+  const loadPaymentHistory = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/payments', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFinePayments(data);
+      }
+    } catch (err) {
+      console.error('Error loading payment history:', err);
+    }
+  };
+
+  const fetchOverdueBooks = async () => {
+    console.log('Starting fetchOverdueBooks...');
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Token exists:', !!token);
+      
+      const response = await fetch('http://localhost:5000/api/books/overdue', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Overdue books data:', data);
+        console.log('Data length:', data.length);
+        setTransactions(data);
+        
+        // Fetch member details for each transaction
+        if (data.length > 0) {
+          const memberIds = [...new Set(data.map(t => t.memberId))];
+          console.log('Member IDs:', memberIds);
+          fetchMemberDetails(memberIds);
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        setTransactions([]);
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setTransactions([]);
+    }
+  };
+
+  const fetchMemberDetails = async (memberIds) => {
+    try {
+      const memberPromises = memberIds.map(id => 
+        fetch(`http://localhost:5000/api/users/search/${id}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(res => res.ok ? res.json() : [])
+      );
+      const memberDataArrays = await Promise.all(memberPromises);
+      const memberData = memberDataArrays.flat().filter(m => m);
+      setMembers(memberData);
+    } catch (err) {
+      console.error('Failed to fetch member details:', err);
+    }
+  };
 
   // Fine calculation rates by book type
   const fineRates = {
-    'Fiction': 1.5,
-    'Non-Fiction': 2.0,
-    'Science': 3.0,
-    'Technology': 3.0,
-    'Reference': 5.0,
-    'History': 2.0,
-    'Biography': 2.0,
-    'default': 2.0
+    'Fiction': 10,
+    'Non-Fiction': 10,
+    'Science': 10,
+    'Technology': 10,
+    'Reference': 10,
+    'History': 10,
+    'Biography': 10,
+    'default': 10
   };
 
   const calculateFine = (transaction) => {
@@ -70,18 +137,70 @@ const OverdueManagement = () => {
     return Math.max(0, daysOverdue * rate);
   };
 
-  const overdueTransactions = transactions.filter(t => {
-    if (t.status !== 'active' || !t.dueDate) return false;
-    return new Date() > new Date(t.dueDate);
-  }).map(t => {
-    const daysOverdue = Math.ceil((new Date() - new Date(t.dueDate)) / (1000 * 60 * 60 * 24));
-    const calculatedFine = calculateFine(t);
-    const book = books.find(b => b._id === t.bookId);
-    return { ...t, daysOverdue, calculatedFine, bookCategory: book?.category || 'Unknown' };
+  const overdueTransactions = transactions.map(t => {
+    const overdueDays = t.overdueDays || Math.ceil((new Date() - new Date(t.dueDate)) / (1000 * 60 * 60 * 24));
+    const calculatedFine = t.currentFine || (overdueDays * 10);
+    const memberDetails = members.find(m => m.memberId === t.memberId);
+    return { 
+      ...t, 
+      daysOverdue: overdueDays,
+      calculatedFine: calculatedFine,
+      bookTitle: t.bookId?.title || 'Unknown Book',
+      bookCategory: t.bookId?.category || 'Unknown',
+      memberName: memberDetails?.name || 'Unknown Member',
+      memberEmail: memberDetails?.email || '',
+      memberPhone: memberDetails?.phone || '',
+      memberDepartment: memberDetails?.department || ''
+    };
   });
 
-  const sendReminder = (transaction) => {
-    success(`Reminder sent to member ${transaction.memberId} for book "${transaction.bookTitle}"`);
+  const sendReminder = async (transaction) => {
+    try {
+      // Find the user by memberId to get their ObjectId
+      const userResponse = await fetch(`http://localhost:5000/api/users/search/${transaction.memberId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (!userResponse.ok) {
+        error('Failed to find member');
+        return;
+      }
+      
+      const users = await userResponse.json();
+      const user = users.find(u => u.memberId === transaction.memberId);
+      
+      if (!user) {
+        error('Member not found');
+        return;
+      }
+      
+      const message = `Dear ${user.name || transaction.memberId}, your book "${transaction.bookTitle}" is ${transaction.daysOverdue} days overdue. Please return it to avoid additional fines. Current fine: ₹${transaction.calculatedFine}.`;
+      
+      // Send notification to member's notification panel
+      const response = await fetch('http://localhost:5000/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          userId: user._id,
+          title: 'Overdue Book Reminder',
+          message: message,
+          category: 'overdue',
+          type: 'warning',
+          priority: 'high'
+        })
+      });
+      
+      if (response.ok) {
+        success(`Reminder sent to member ${transaction.memberId} for book "${transaction.bookTitle}"`);
+      } else {
+        error('Failed to send reminder');
+      }
+    } catch (err) {
+      error('Error sending reminder');
+    }
   };
 
   const messageTemplates = {
@@ -92,59 +211,131 @@ const OverdueManagement = () => {
     custom: customMessage
   };
 
-  const sendCommunication = (type, members = selectedMembers) => {
+  const sendCommunication = async (type, members = selectedMembers) => {
     const template = messageTemplates[messageTemplate];
     let sentCount = 0;
     
-    members.forEach(member => {
+    for (const member of members) {
       const message = template
         .replace('[MEMBER_NAME]', member.memberName || member.memberId)
         .replace('[BOOK_TITLE]', member.bookTitle)
         .replace('[DAYS_OVERDUE]', member.daysOverdue)
         .replace('[FINE_AMOUNT]', member.calculatedFine);
       
-      console.log(`${type} sent to ${member.memberId}:`, message);
-      sentCount++;
-    });
+      if (type === 'Notification') {
+        try {
+          console.log('Sending notification to member:', member.memberId);
+          
+          // First find the user by memberId to get their ObjectId
+          const userResponse = await fetch(`http://localhost:5000/api/users/search/${member.memberId}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
+          
+          if (!userResponse.ok) {
+            console.error('Failed to find user:', member.memberId);
+            return;
+          }
+          
+          const users = await userResponse.json();
+          const user = users.find(u => u.memberId === member.memberId);
+          
+          if (!user) {
+            console.error('User not found with memberId:', member.memberId);
+            return;
+          }
+          
+          // Send notification to member's notification panel
+          const response = await fetch('http://localhost:5000/api/notifications', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              userId: user._id, // Use the actual ObjectId
+              title: 'Overdue Book Reminder',
+              message: message,
+              category: 'overdue',
+              type: 'warning',
+              priority: 'high'
+            })
+          });
+          
+          if (response.ok) {
+            console.log('Notification sent successfully to:', member.memberId);
+            sentCount++;
+          } else {
+            const errorText = await response.text();
+            console.error('Failed to send notification:', response.status, errorText);
+          }
+        } catch (error) {
+          console.error('Failed to send notification:', error);
+        }
+      } else {
+        console.log(`${type} sent to ${member.memberId}:`, message);
+        sentCount++;
+      }
+    }
     
     success(`${type} sent to ${sentCount} member(s)`);
     setShowCommunicationDialog(false);
     setSelectedMembers([]);
   };
 
-  const collectFine = () => {
+  const collectFine = async () => {
     if (!fineAmount || !selectedTransaction) {
       error('Please enter fine amount');
       return;
     }
 
-    const payment = {
-      id: Date.now().toString(),
-      transactionId: selectedTransaction._id,
-      memberId: selectedTransaction.memberId,
-      bookTitle: selectedTransaction.bookTitle,
-      amount: parseFloat(fineAmount),
-      paymentDate: new Date().toISOString(),
-      paymentMethod: 'Cash',
-      processedBy: user?.name || 'Librarian'
-    };
+    try {
+      // Save payment to backend
+      const response = await fetch('http://localhost:5000/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          transactionId: selectedTransaction._id,
+          memberId: selectedTransaction.memberId,
+          bookTitle: selectedTransaction.bookTitle,
+          amount: parseFloat(fineAmount),
+          paymentMethod: 'Cash'
+        })
+      });
 
-    const updatedTransactions = transactions.map(t => 
-      t._id === selectedTransaction._id 
-        ? { ...t, fineCollected: parseFloat(fineAmount), fineStatus: 'paid' }
-        : t
-    );
-    
-    const updatedPayments = [...finePayments, payment];
-    
-    setTransactions(updatedTransactions);
-    setFinePayments(updatedPayments);
-    localStorage.setItem('lms_transactions', JSON.stringify(updatedTransactions));
-    localStorage.setItem('lms_fine_payments', JSON.stringify(updatedPayments));
-    setShowFineDialog(false);
-    setFineAmount('');
-    setSelectedTransaction(null);
-    success(`Fine of $${fineAmount} collected from member ${selectedTransaction.memberId}`);
+      if (response.ok) {
+        const payment = await response.json();
+        
+        // Update transaction status to 'returned' in backend
+        await fetch(`http://localhost:5000/api/books/${selectedTransaction.bookId}/return`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            memberId: selectedTransaction.memberId
+          })
+        });
+        
+        await loadPaymentHistory(); // Refresh payment history
+        
+        // Remove the transaction from overdue list after payment
+        const updatedTransactions = transactions.filter(t => t._id !== selectedTransaction._id);
+        
+        setTransactions(updatedTransactions);
+        setShowFineDialog(false);
+        setFineAmount('');
+        setSelectedTransaction(null);
+        success(`Fine of ₹${fineAmount} collected from member ${selectedTransaction.memberId}`);
+      } else {
+        error('Failed to record payment');
+      }
+    } catch (err) {
+      error('Error processing payment');
+    }
   };
 
   const waiveFine = () => {
@@ -178,36 +369,25 @@ const OverdueManagement = () => {
     success(`Fine of $${selectedTransaction.calculatedFine} waived for member ${selectedTransaction.memberId}`);
   };
 
-  const generateFineReport = () => {
-    const now = new Date();
-    let startDate, endDate;
-    
-    if (reportPeriod === 'monthly') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    } else {
-      startDate = new Date(now.getFullYear(), 0, 1);
-      endDate = new Date(now.getFullYear(), 11, 31);
+  const generateFineReport = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/payments/reports?period=${reportPeriod}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.error('Error generating report:', err);
     }
-    
-    const periodPayments = finePayments.filter(p => {
-      const paymentDate = new Date(p.paymentDate);
-      return paymentDate >= startDate && paymentDate <= endDate;
-    });
-    
-    const totalCollected = periodPayments.reduce((sum, p) => sum + p.amount, 0);
-    const totalWaived = transactions.filter(t => 
-      t.fineWaived && new Date(t.waivedDate || t.returnDate) >= startDate
-    ).reduce((sum, t) => sum + (t.originalAmount || t.calculatedFine || 0), 0);
-    
     return {
       period: reportPeriod,
-      startDate: startDate.toLocaleDateString(),
-      endDate: endDate.toLocaleDateString(),
-      totalCollected,
-      totalWaived,
-      paymentsCount: periodPayments.length,
-      payments: periodPayments
+      totalCollected: 0,
+      totalWaived: 0,
+      paymentsCount: 0,
+      payments: []
     };
   };
 
@@ -307,8 +487,29 @@ const OverdueManagement = () => {
 
   const overdueColumns = [
     { key: 'bookTitle', name: 'Book Title', fieldName: 'bookTitle', minWidth: 200 },
-    { key: 'memberId', name: 'Member ID', fieldName: 'memberId', minWidth: 100 },
-    { key: 'memberName', name: 'Member Name', fieldName: 'memberName', minWidth: 150 },
+    {
+      key: 'member',
+      name: 'Member Details',
+      minWidth: 200,
+      onRender: (item) => (
+        <Stack tokens={{ childrenGap: 2 }}>
+          <Text styles={{ root: { fontSize: '14px', fontWeight: '600' } }}>
+            {item.memberName}
+          </Text>
+          <Text styles={{ root: { fontSize: '12px', fontFamily: 'monospace' } }}>
+            ID: {item.memberId}
+          </Text>
+          <Text styles={{ root: { fontSize: '12px', color: '#605e5c' } }}>
+            {item.memberEmail}
+          </Text>
+          {item.memberDepartment && (
+            <Text styles={{ root: { fontSize: '12px', color: '#605e5c' } }}>
+              {item.memberDepartment}
+            </Text>
+          )}
+        </Stack>
+      )
+    },
     { 
       key: 'issueDate', 
       name: 'Issue Date', 
@@ -338,10 +539,10 @@ const OverdueManagement = () => {
       onRender: (item) => (
         <Stack>
           <Text styles={{ root: { color: '#5c2d91', fontWeight: FontWeights.semibold } }}>
-            ${item.calculatedFine.toFixed(2)}
+            ₹{item.calculatedFine}
           </Text>
           <Text variant="small" styles={{ root: { color: '#666' } }}>
-            {item.bookCategory} (${fineRates[item.bookCategory] || fineRates.default}/day)
+            {item.bookCategory} (₹10/day)
           </Text>
         </Stack>
       )
@@ -349,39 +550,30 @@ const OverdueManagement = () => {
     {
       key: 'actions',
       name: 'Actions',
-      minWidth: 200,
+      minWidth: 150,
       onRender: (item) => (
-        <Stack horizontal tokens={{ childrenGap: 8 }}>
+        <Stack horizontal tokens={{ childrenGap: 4 }}>
           <IconButton
             iconProps={{ iconName: 'Mail' }}
             title="Send Reminder"
             onClick={() => sendReminder(item)}
-            styles={{ root: { color: '#0078d4' } }}
+            styles={{ root: { color: '#0078d4', minWidth: 32, width: 32, height: 32 } }}
           />
           <IconButton
             iconProps={{ iconName: 'Money' }}
             title="Collect Fine"
             onClick={() => {
               setSelectedTransaction(item);
-              setFineAmount(item.calculatedFine.toFixed(2));
+              setFineAmount(item.calculatedFine.toString());
               setShowFineDialog(true);
             }}
-            styles={{ root: { color: '#107c10' } }}
-          />
-          <IconButton
-            iconProps={{ iconName: 'WavingHand' }}
-            title="Waive Fine"
-            onClick={() => {
-              setSelectedTransaction(item);
-              setShowWaiverDialog(true);
-            }}
-            styles={{ root: { color: '#ff8c00' } }}
+            styles={{ root: { color: '#107c10', minWidth: 32, width: 32, height: 32 } }}
           />
           <IconButton
             iconProps={{ iconName: 'ReturnToSession' }}
             title="Force Return"
             onClick={() => forceReturn(item)}
-            styles={{ root: { color: '#d13438' } }}
+            styles={{ root: { color: '#d13438', minWidth: 32, width: 32, height: 32 } }}
           />
         </Stack>
       )
@@ -405,30 +597,12 @@ const OverdueManagement = () => {
       }
     },
     {
-      key: 'viewOverdueBooks',
-      text: 'View Overdue Books',
-      iconProps: { iconName: 'View' },
-      onClick: () => setShowOverdueListDialog(true)
-    },
-    {
       key: 'refresh',
       text: 'Refresh',
       iconProps: { iconName: 'Refresh' },
       onClick: () => {
-        const savedTransactions = localStorage.getItem('lms_transactions');
-        const savedBooks = localStorage.getItem('lms_books');
-        if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-        if (savedBooks) setBooks(JSON.parse(savedBooks));
-        success('Data refreshed');
-      }
-    },
-    {
-      key: 'sendAllReminders',
-      text: 'Send All Reminders',
-      iconProps: { iconName: 'BulkUpload' },
-      onClick: () => {
-        overdueTransactions.forEach(t => sendReminder(t));
-        success(`Reminders sent to ${overdueTransactions.length} members`);
+        fetchOverdueBooks();
+        success('Refreshed overdue books data');
       }
     },
     {
@@ -466,14 +640,14 @@ const OverdueManagement = () => {
         
         <Stack styles={{ root: { padding: 15, border: '1px solid #e1dfdd', borderRadius: 4, minWidth: 150 } }}>
           <Text variant="large" styles={{ root: { color: '#5c2d91', fontWeight: FontWeights.bold } }}>
-            ${totalOverdueFines.toFixed(2)}
+            ₹{totalOverdueFines}
           </Text>
           <Text>Total Fines</Text>
         </Stack>
         
         <Stack styles={{ root: { padding: 15, border: '1px solid #e1dfdd', borderRadius: 4, minWidth: 150 } }}>
           <Text variant="large" styles={{ root: { color: '#107c10', fontWeight: FontWeights.bold } }}>
-            ${finePayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+            ₹{finePayments.reduce((sum, p) => sum + p.amount, 0)}
           </Text>
           <Text>Collected This Month</Text>
         </Stack>
@@ -501,7 +675,7 @@ const OverdueManagement = () => {
           <Text>Member: {selectedTransaction?.memberId}</Text>
           <Text>Category: {selectedTransaction?.bookCategory}</Text>
           <Text>Days Overdue: {selectedTransaction?.daysOverdue}</Text>
-          <Text>Rate: ${fineRates[selectedTransaction?.bookCategory] || fineRates.default}/day</Text>
+          <Text>Rate: ₹{fineRates[selectedTransaction?.bookCategory] || fineRates.default}/day</Text>
           <TextField
             label="Fine Amount ($)"
             value={fineAmount}
@@ -660,16 +834,16 @@ const OverdueManagement = () => {
               onClick={() => sendCommunication('Email')}
             />
             <DefaultButton
-              text="Send SMS"
-              iconProps={{ iconName: 'CellPhone' }}
-              onClick={() => sendCommunication('SMS')}
+              text="Send Notification"
+              iconProps={{ iconName: 'Ringer' }}
+              onClick={() => sendCommunication('Notification')}
             />
             <DefaultButton
               text="Send Both"
               iconProps={{ iconName: 'BulkUpload' }}
               onClick={() => {
                 sendCommunication('Email');
-                setTimeout(() => sendCommunication('SMS'), 500);
+                setTimeout(() => sendCommunication('Notification'), 500);
               }}
             />
           </Stack>
@@ -708,27 +882,24 @@ const OverdueManagement = () => {
       </Dialog>
 
       {/* Payment History Dialog */}
-      <Dialog
-        hidden={!showPaymentHistoryDialog}
+      <Panel
+        isOpen={showPaymentHistoryDialog}
         onDismiss={() => setShowPaymentHistoryDialog(false)}
-        dialogContentProps={{
-          type: DialogType.normal,
-          title: 'Fine Payment History'
-        }}
-        styles={{ main: { minWidth: 900 } }}
+        headerText="Fine Payment History"
+        type={PanelType.extraLarge}
       >
         <Stack tokens={{ childrenGap: 15 }}>
           <Text variant="medium">Total Payments: {finePayments.length}</Text>
-          <Text variant="medium">Total Amount: ${finePayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</Text>
+          <Text variant="medium">Total Amount: ₹{finePayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</Text>
           
           <DetailsList
-            items={finePayments.sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate))}
+            items={finePayments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}
             columns={[
               { 
                 key: 'paymentDate', 
                 name: 'Date', 
                 minWidth: 100,
-                onRender: (item) => new Date(item.paymentDate).toLocaleDateString()
+                onRender: (item) => new Date(item.createdAt).toLocaleDateString()
               },
               { key: 'memberId', name: 'Member ID', fieldName: 'memberId', minWidth: 100 },
               { key: 'bookTitle', name: 'Book Title', fieldName: 'bookTitle', minWidth: 200 },
@@ -736,29 +907,23 @@ const OverdueManagement = () => {
                 key: 'amount', 
                 name: 'Amount', 
                 minWidth: 80,
-                onRender: (item) => `$${item.amount.toFixed(2)}`
+                onRender: (item) => `₹${item.amount.toFixed(2)}`
               },
               { key: 'paymentMethod', name: 'Method', fieldName: 'paymentMethod', minWidth: 80 },
-              { key: 'processedBy', name: 'Processed By', fieldName: 'processedBy', minWidth: 120 }
+              { key: 'processedBy', name: 'Processed By', minWidth: 120, onRender: (item) => item.processedBy?.name || 'Unknown' }
             ]}
             layoutMode={DetailsListLayoutMode.justified}
             selectionMode={SelectionMode.none}
           />
         </Stack>
-        <DialogFooter>
-          <DefaultButton onClick={() => setShowPaymentHistoryDialog(false)} text="Close" />
-        </DialogFooter>
-      </Dialog>
+      </Panel>
 
       {/* Fine Reports Dialog */}
-      <Dialog
-        hidden={!showFineReportsDialog}
+      <Panel
+        isOpen={showFineReportsDialog}
         onDismiss={() => setShowFineReportsDialog(false)}
-        dialogContentProps={{
-          type: DialogType.normal,
-          title: 'Fine Collection Reports'
-        }}
-        styles={{ main: { minWidth: 700 } }}
+        headerText="Fine Collection Reports"
+        type={PanelType.extraLarge}
       >
         <Stack tokens={{ childrenGap: 20 }}>
           <Dropdown
@@ -772,18 +937,25 @@ const OverdueManagement = () => {
           />
           
           {(() => {
-            const report = generateFineReport();
+            const [report, setReport] = useState(null);
+            
+            useEffect(() => {
+              generateFineReport().then(setReport);
+            }, [reportPeriod]);
+            
+            if (!report) return <Text>Loading report...</Text>;
+            
             return (
               <Stack tokens={{ childrenGap: 15 }}>
                 <Text variant="large" styles={{ root: { fontWeight: FontWeights.bold } }}>
                   {report.period === 'monthly' ? 'Monthly' : 'Yearly'} Fine Report
                 </Text>
-                <Text>Period: {report.startDate} - {report.endDate}</Text>
+                <Text>Period: {new Date(report.startDate).toLocaleDateString()} - {new Date(report.endDate).toLocaleDateString()}</Text>
                 
                 <Stack horizontal tokens={{ childrenGap: 30 }}>
                   <Stack styles={{ root: { padding: 15, border: '1px solid #e1dfdd', borderRadius: 4 } }}>
                     <Text variant="large" styles={{ root: { color: '#107c10', fontWeight: FontWeights.bold } }}>
-                      ${report.totalCollected.toFixed(2)}
+                      ₹{report.totalCollected.toFixed(2)}
                     </Text>
                     <Text>Total Collected</Text>
                     <Text variant="small">{report.paymentsCount} payments</Text>
@@ -791,14 +963,14 @@ const OverdueManagement = () => {
                   
                   <Stack styles={{ root: { padding: 15, border: '1px solid #e1dfdd', borderRadius: 4 } }}>
                     <Text variant="large" styles={{ root: { color: '#ff8c00', fontWeight: FontWeights.bold } }}>
-                      ${report.totalWaived.toFixed(2)}
+                      ₹{report.totalWaived.toFixed(2)}
                     </Text>
                     <Text>Total Waived</Text>
                   </Stack>
                   
                   <Stack styles={{ root: { padding: 15, border: '1px solid #e1dfdd', borderRadius: 4 } }}>
                     <Text variant="large" styles={{ root: { color: '#0078d4', fontWeight: FontWeights.bold } }}>
-                      ${(report.totalCollected + report.totalWaived).toFixed(2)}
+                      ₹{(report.totalCollected + report.totalWaived).toFixed(2)}
                     </Text>
                     <Text>Total Fines</Text>
                   </Stack>
@@ -816,14 +988,14 @@ const OverdueManagement = () => {
                           key: 'paymentDate', 
                           name: 'Date', 
                           minWidth: 100,
-                          onRender: (item) => new Date(item.paymentDate).toLocaleDateString()
+                          onRender: (item) => new Date(item.createdAt).toLocaleDateString()
                         },
                         { key: 'memberId', name: 'Member', fieldName: 'memberId', minWidth: 80 },
                         { 
                           key: 'amount', 
                           name: 'Amount', 
                           minWidth: 80,
-                          onRender: (item) => `$${item.amount.toFixed(2)}`
+                          onRender: (item) => `₹${item.amount.toFixed(2)}`
                         },
                         { key: 'paymentMethod', name: 'Method', fieldName: 'paymentMethod', minWidth: 80 }
                       ]}
@@ -836,10 +1008,7 @@ const OverdueManagement = () => {
             );
           })()}
         </Stack>
-        <DialogFooter>
-          <DefaultButton onClick={() => setShowFineReportsDialog(false)} text="Close" />
-        </DialogFooter>
-      </Dialog>
+      </Panel>
     </Stack>
   );
 };

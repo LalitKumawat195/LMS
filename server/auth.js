@@ -91,6 +91,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    // Check if user status is active
+    if (user.status !== 'Active') {
+      return res.status(403).json({ message: 'Account is inactive. Please contact administrator.' });
+    }
+
     const token = jwt.sign({ 
       userId: user._id,
       name: user.name,

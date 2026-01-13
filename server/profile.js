@@ -48,6 +48,12 @@ router.get('/profile', authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Check if user status is active
+    if (user.status !== 'Active') {
+      return res.status(403).json({ message: 'Account is inactive. Please contact administrator.' });
+    }
+    
     res.json(user);
   } catch (error) {
     console.error('Profile fetch error:', error);

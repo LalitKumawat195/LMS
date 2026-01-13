@@ -562,7 +562,7 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
                     {notification.priority === 'high' && !notification.read && (
                       <div style={{
                         position: 'absolute',
-                        top: '16px',
+                        bottom: '16px',
                         right: '16px',
                         background: '#d13438',
                         color: '#ffffff',
@@ -573,7 +573,7 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         lineHeight: '12px'
-                      }}>
+                      }}>>
                         High Priority
                       </div>
                     )}
