@@ -37,9 +37,12 @@ app.use('/api/notices', require('./notices'));
 app.use('/api/notifications', require('./notifications'));
 app.use('/api/tickets', require('./tickets'));
 app.use('/api/books', require('./books'));
+app.use('/api/book-requests', require('./book-requests'));
 app.use('/api/payments', require('./payments'));
 app.use('/api/transactions', require('./transactions'));
 app.use('/api/chats', require('./chats'));
+app.use('/api/wishlist', require('./wishlist-routes'));
+app.use('/api/reservations', require('./reservation-routes'));
 app.use('/api/test', require('./test'));
 
 mongoose.connection.on('connected', async () => {

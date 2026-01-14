@@ -7,13 +7,13 @@ const transactionSchema = new mongoose.Schema({
     required: true
   },
   memberId: {
-    type: String,
-    required: true,
-    trim: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   type: {
     type: String,
-    enum: ['issue', 'return'],
+    enum: ['issue', 'return', 'renew'],
     required: true
   },
   issueDate: {

@@ -49,6 +49,10 @@ const chatSchema = new mongoose.Schema({
     },
     profilePicture: {
       type: String
+    },
+    unreadCount: {
+      type: Number,
+      default: 0
     }
   }],
   messages: [messageSchema],
@@ -62,8 +66,7 @@ const chatSchema = new mongoose.Schema({
   },
   initiatedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   }
 }, {
   timestamps: true

@@ -22,6 +22,11 @@ import {
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
+import BrowseBooks from './BrowseBooks';
+import MyBooks from './MyBooks';
+import Reservations from './Reservations';
+import History from './History';
+import MyRequests from './MyRequests';
 
 const MemberDashboard = () => {
   const { user } = useAuth();
@@ -29,6 +34,13 @@ const MemberDashboard = () => {
   const { success, info } = useNotifications();
   const [selectedPivot, setSelectedPivot] = useState('browse');
   const [searchValue, setSearchValue] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [stats, setStats] = useState({
+    borrowedBooks: 0,
+    maxBooks: 5,
+    overdueBooks: 0,
+    fines: 0
+  });
 
   const [memberData, setMemberData] = useState({
     borrowedBooks: 3,
@@ -37,6 +49,30 @@ const MemberDashboard = () => {
     fines: 15.50,
     reservedBooks: 2
   });
+
+  useEffect(() => {
+    fetchStats();
+  }, [refreshKey]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/transactions/my-stats', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to load stats');
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+    fetchStats();
+    success('Data refreshed');
+  };
 
   const cardStyle = mergeStyles({
     background: isDark ? '#323130' : '#ffffff',
@@ -110,20 +146,28 @@ const MemberDashboard = () => {
   return (
     <Stack tokens={{ childrenGap: 24 }} styles={{ root: { padding: '24px', maxWidth: '1200px', margin: '0 auto' } }}>
       {/* Header */}
-      <Stack tokens={{ childrenGap: 8 }}>
-        <Text variant="xxLarge" styles={{ 
-          root: { 
-            fontWeight: FontWeights.bold,
-            background: 'linear-gradient(135deg, #0078d4, #106ebe)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          } 
-        }}>
-          My Library
-        </Text>
-        <Text variant="medium" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
-          Welcome back, {user?.name}! Manage your books and explore our collection.
-        </Text>
+      <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+        <Stack tokens={{ childrenGap: 8 }}>
+          <Text variant="xxLarge" styles={{ 
+            root: { 
+              fontWeight: FontWeights.bold,
+              background: 'linear-gradient(135deg, #0078d4, #106ebe)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            } 
+          }}>
+            My Library
+          </Text>
+          <Text variant="medium" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+            Welcome back, {user?.name}! Manage your books and explore our collection.
+          </Text>
+        </Stack>
+        <IconButton
+          iconProps={{ iconName: 'Refresh' }}
+          title="Refresh"
+          onClick={handleRefresh}
+          styles={{ root: { fontSize: '20px' } }}
+        />
       </Stack>
 
       {/* Account Status Cards */}
@@ -137,10 +181,10 @@ const MemberDashboard = () => {
               <Icon iconName="BookAnswers" styles={{ root: { color: '#0078d4', fontSize: '20px' } }} />
             </Stack>
             <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#0078d4' } }}>
-              {memberData.borrowedBooks}/{memberData.maxBooks}
+              {stats.borrowedBooks}/{stats.maxBooks}
             </Text>
             <ProgressIndicator 
-              percentComplete={memberData.borrowedBooks / memberData.maxBooks}
+              percentComplete={stats.borrowedBooks / stats.maxBooks}
               styles={{ progressBar: { backgroundColor: '#0078d4' } }}
             />
           </Stack>
@@ -157,12 +201,12 @@ const MemberDashboard = () => {
             <Text variant="xxLarge" styles={{ 
               root: { 
                 fontWeight: FontWeights.bold, 
-                color: memberData.overdueBooks > 0 ? '#d13438' : '#107c10' 
+                color: stats.overdueBooks > 0 ? '#d13438' : '#107c10' 
               } 
             }}>
-              {memberData.overdueBooks}
+              {stats.overdueBooks}
             </Text>
-            {memberData.overdueBooks > 0 && (
+            {stats.overdueBooks > 0 && (
               <Text variant="small" styles={{ root: { color: '#d13438' } }}>
                 Please return immediately
               </Text>
@@ -181,12 +225,12 @@ const MemberDashboard = () => {
             <Text variant="xxLarge" styles={{ 
               root: { 
                 fontWeight: FontWeights.bold, 
-                color: memberData.fines > 0 ? '#d13438' : '#107c10' 
+                color: stats.fines > 0 ? '#d13438' : '#107c10' 
               } 
             }}>
-              ${memberData.fines.toFixed(2)}
+              ₹{stats.fines.toFixed(2)}
             </Text>
-            {memberData.fines > 0 && (
+            {stats.fines > 0 && (
               <DefaultButton 
                 text="Pay Now" 
                 onClick={() => info('Redirecting to payment portal...')}
@@ -198,9 +242,9 @@ const MemberDashboard = () => {
       </Stack>
 
       {/* Alerts */}
-      {memberData.overdueBooks > 0 && (
+      {stats.overdueBooks > 0 && (
         <MessageBar messageBarType={MessageBarType.warning}>
-          You have {memberData.overdueBooks} overdue book(s). Please return them to avoid additional fines.
+          You have {stats.overdueBooks} overdue book(s). Please return them to avoid additional fines.
         </MessageBar>
       )}
 
@@ -211,110 +255,21 @@ const MemberDashboard = () => {
       >
         <PivotItem headerText="Browse Books" itemKey="browse" />
         <PivotItem headerText="My Books" itemKey="borrowed" />
+        <PivotItem headerText="My Requests" itemKey="requests" />
         <PivotItem headerText="Reservations" itemKey="reservations" />
         <PivotItem headerText="History" itemKey="history" />
       </Pivot>
 
       {/* Content */}
-      {selectedPivot === 'browse' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="Search" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                Browse Books
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Advanced book browsing and search system with filters, categories, and personalized recommendations.
-            </Text>
-          </Stack>
-        </div>
-      )}
+      {selectedPivot === 'browse' && <BrowseBooks key={`browse-${refreshKey}`} />}
 
-      {selectedPivot === 'borrowed' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="BookAnswers" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                My Books
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Complete borrowed books management with renewal options, due dates, and return tracking.
-            </Text>
-          </Stack>
-        </div>
-      )}
+      {selectedPivot === 'borrowed' && <MyBooks key={`mybooks-${refreshKey}`} />}
 
-      {selectedPivot === 'reservations' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="Bookmark" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                Reservations
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Book reservation system with queue management and availability notifications.
-            </Text>
-          </Stack>
-        </div>
-      )}
+      {selectedPivot === 'requests' && <MyRequests key={`requests-${refreshKey}`} />}
 
-      {selectedPivot === 'history' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="History" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                History
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Complete borrowing history with reading statistics, favorite books, and personalized insights.
-            </Text>
-          </Stack>
-        </div>
-      )}
+      {selectedPivot === 'reservations' && <Reservations key={`reservations-${refreshKey}`} />}
+
+      {selectedPivot === 'history' && <History key={`history-${refreshKey}`} />}
     </Stack>
   );
 };

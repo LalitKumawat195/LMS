@@ -26,6 +26,7 @@ import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
 import UserManagement from './UserManagement';
 import BooksManagement from './BooksManagement';
+import BookRequestManagement from './BookRequestManagement';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -287,6 +288,7 @@ const AdminDashboard = () => {
         <PivotItem headerText="System Overview" itemKey="overview" />
         <PivotItem headerText="User Management" itemKey="users" />
         <PivotItem headerText="Books Management" itemKey="books" />
+        <PivotItem headerText="Book Requests" itemKey="requests" />
         <PivotItem headerText="System Monitoring" itemKey="monitoring" />
         <PivotItem headerText="Analytics" itemKey="analytics" />
         <PivotItem headerText="Settings" itemKey="settings" />
@@ -361,6 +363,10 @@ const AdminDashboard = () => {
 
       {selectedPivot === 'books' && (
         <BooksManagement />
+      )}
+
+      {selectedPivot === 'requests' && (
+        <BookRequestManagement />
       )}
 
       {selectedPivot === 'monitoring' && (

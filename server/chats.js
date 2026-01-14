@@ -31,25 +31,27 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const chats = await Chat.find({
       'participants.userId': req.user.id
-    }).populate('participants.userId', 'name role profilePicture').sort({ lastMessageAt: -1 });
+    }).sort({ lastMessageAt: -1 });
 
     const formattedChats = chats.map(chat => {
-      const otherParticipant = chat.participants.find(p => p.userId._id.toString() !== req.user.id);
+      const otherParticipant = chat.participants.find(p => p.userId.toString() !== req.user.id);
+      const currentUserParticipant = chat.participants.find(p => p.userId.toString() === req.user.id);
       
       // Hide Admin from Members unless Admin initiated the chat
-      if (req.user.role === 'Member' && otherParticipant?.userId.role === 'Admin') {
-        if (chat.initiatedBy.toString() !== otherParticipant.userId._id.toString()) {
+      if (req.user.role === 'Member' && otherParticipant?.role === 'Admin') {
+        if (chat.initiatedBy && chat.initiatedBy.toString() !== otherParticipant.userId.toString()) {
           return null;
         }
       }
       
       return {
         id: chat._id,
-        name: otherParticipant?.userId.name || otherParticipant?.name || 'Unknown User',
-        role: otherParticipant?.userId.role || otherParticipant?.role || 'Member',
-        profilePicture: otherParticipant?.userId.profilePicture || otherParticipant?.profilePicture,
+        name: otherParticipant?.name || 'Unknown User',
+        role: otherParticipant?.role || 'Member',
+        profilePicture: otherParticipant?.profilePicture,
         lastMessage: chat.lastMessage,
-        lastMessageAt: chat.lastMessageAt
+        lastMessageAt: chat.lastMessageAt,
+        unreadCount: currentUserParticipant?.unreadCount || 0
       };
     }).filter(chat => chat !== null);
 
@@ -83,10 +85,14 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     if (existingChat) {
+      const otherParticipant = existingChat.participants.find(p => p.userId.toString() !== req.user.id);
       return res.json({
         id: existingChat._id,
         name: participant.name,
-        role: participant.role
+        role: participant.role,
+        profilePicture: participant.profilePicture,
+        lastMessage: existingChat.lastMessage,
+        lastMessageAt: existingChat.lastMessageAt
       });
     }
 
@@ -115,7 +121,10 @@ router.post('/', verifyToken, async (req, res) => {
     res.status(201).json({
       id: chat._id,
       name: participant.name,
-      role: participant.role
+      role: participant.role,
+      profilePicture: participant.profilePicture,
+      lastMessage: '',
+      lastMessageAt: chat.lastMessageAt
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -135,6 +144,13 @@ router.get('/:chatId/messages', verifyToken, async (req, res) => {
     const isParticipant = chat.participants.some(p => p.userId.toString() === req.user.id);
     if (!isParticipant) {
       return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Reset unread count for current user
+    const currentUserParticipant = chat.participants.find(p => p.userId.toString() === req.user.id);
+    if (currentUserParticipant) {
+      currentUserParticipant.unreadCount = 0;
+      await chat.save();
     }
 
     // Add profile pictures to messages
@@ -178,6 +194,13 @@ router.post('/:chatId/messages', verifyToken, async (req, res) => {
     chat.messages.push(message);
     chat.lastMessage = content;
     chat.lastMessageAt = new Date();
+
+    // Increment unread count for other participants
+    chat.participants.forEach(p => {
+      if (p.userId.toString() !== req.user.id) {
+        p.unreadCount = (p.unreadCount || 0) + 1;
+      }
+    });
 
     await chat.save();
 

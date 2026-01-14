@@ -89,7 +89,7 @@ const TransactionHistoryPage = ({ onBack }) => {
       minWidth: 120,
       onRender: (item) => (
         <Text styles={{ root: { fontSize: '14px', fontFamily: 'monospace', fontWeight: '600' } }}>
-          {item.memberId}
+          {item.memberDetails?.memberId || item.memberId}
         </Text>
       )
     },

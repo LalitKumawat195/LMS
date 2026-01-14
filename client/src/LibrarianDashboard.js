@@ -33,6 +33,7 @@ import BooksManagement from './BooksManagement';
 import OverdueManagement from './OverdueManagement';
 import AdvancedOverdueManagement from './AdvancedOverdueManagement';
 import MemberPortal from './MemberPortal';
+import BookRequestManagement from './BookRequestManagement';
 
 import ComprehensiveMemberServices from './ComprehensiveMemberServices';
 import LibrarianUserManagement from './LibrarianUserManagement';
@@ -45,7 +46,7 @@ const LibrarianDashboard = () => {
   const { success, warning, info } = useNotifications();
   const [selectedPivot, setSelectedPivot] = useState('circulation');
   const [searchValue, setSearchValue] = useState('');
-  const [isBooksManagementOpen, setIsBooksManagementOpen] = useState(false);
+  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [books, setBooks] = useState([]);
@@ -56,21 +57,59 @@ const LibrarianDashboard = () => {
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   });
   const [returnForm, setReturnForm] = useState({
-    transactionId: ''
+    bookId: '',
+    memberId: ''
   });
 
   const [librarianData, setLibrarianData] = useState({
-    todayIssues: 12,
-    todayReturns: 8,
-    overdueItems: 23,
-    pendingReservations: 15,
-    totalMembers: 456,
-    activeMembers: 342
+    todayIssues: 0,
+    todayReturns: 0,
+    overdueItems: 0,
+    pendingReservations: 0,
+    totalMembers: 0,
+    activeMembers: 0
   });
 
   useEffect(() => {
     loadLibraryData();
+    loadDashboardStats();
   }, []);
+
+  const loadDashboardStats = async () => {
+    try {
+      const [transactionsRes, usersRes] = await Promise.all([
+        fetch('http://localhost:5000/api/transactions', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }),
+        fetch('http://localhost:5000/api/users', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        })
+      ]);
+
+      if (transactionsRes.ok && usersRes.ok) {
+        const transactions = await transactionsRes.json();
+        const users = await usersRes.json();
+        
+        const today = new Date().toDateString();
+        const todayIssues = transactions.filter(t => t.type === 'issue' && new Date(t.createdAt).toDateString() === today).length;
+        const todayReturns = transactions.filter(t => t.type === 'return' && new Date(t.createdAt).toDateString() === today).length;
+        const overdueItems = transactions.filter(t => t.status === 'overdue').length;
+        const members = users.filter(u => u.role === 'Member');
+        const activeMembers = members.filter(m => m.status === 'Active').length;
+        
+        setLibrarianData({
+          todayIssues,
+          todayReturns,
+          overdueItems,
+          pendingReservations: 0,
+          totalMembers: members.length,
+          activeMembers
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
+    }
+  };
 
   const loadLibraryData = async () => {
     try {
@@ -196,7 +235,10 @@ const LibrarianDashboard = () => {
       key: 'addMember',
       text: 'Add Member',
       iconProps: { iconName: 'AddFriend' },
-      onClick: () => info('Member registration feature coming soon')
+      onClick: () => {
+        setSelectedPivot('memberManagement');
+        setTimeout(() => setShowAddMemberDialog(true), 100);
+      }
     }
   ];
 
@@ -308,6 +350,7 @@ const LibrarianDashboard = () => {
       >
         <PivotItem headerText="Circulation" itemKey="circulation" />
         <PivotItem headerText="Books Management" itemKey="books" />
+        <PivotItem headerText="Book Requests" itemKey="requests" />
         <PivotItem headerText="Member Management" itemKey="memberManagement" />
         <PivotItem headerText="Overdue Management" itemKey="overdue" />
         <PivotItem headerText="Advanced Analytics" itemKey="analytics" />
@@ -323,8 +366,12 @@ const LibrarianDashboard = () => {
         <BooksManagement />
       )}
 
+      {selectedPivot === 'requests' && (
+        <BookRequestManagement />
+      )}
+
       {selectedPivot === 'memberManagement' && (
-        <LibrarianUserManagement />
+        <LibrarianUserManagement showAddDialog={showAddMemberDialog} onCloseAddDialog={() => setShowAddMemberDialog(false)} />
       )}
 
       {selectedPivot === 'overdue' && (
@@ -364,7 +411,7 @@ const LibrarianDashboard = () => {
           />
           <ComboBox
             label="Select Book"
-            options={books.map(b => ({ key: b._id, text: `${b.title} - ${b.author} (${b.availableCopies || 0} available)` }))}
+            options={books.filter(b => (b.available || 0) > 0).map(b => ({ key: b._id, text: `${b.title} - ${b.author} (${b.available || 0} available)` }))}
             selectedKey={issueForm.bookId}
             onChange={(e, option) => setIssueForm({...issueForm, bookId: option.key})}
             placeholder="Search and select a book"
@@ -389,30 +436,27 @@ const LibrarianDashboard = () => {
               
               try {
                 console.log('Issue form data:', issueForm);
-                const response = await fetch('http://localhost:5000/api/transactions', {
+                const response = await fetch(`http://localhost:5000/api/books/${issueForm.bookId}/issue`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                   },
                   body: JSON.stringify({
-                    bookId: issueForm.bookId,
                     memberId: issueForm.memberId,
-                    type: 'issue',
-                    dueDate: issueForm.dueDate,
-                    processedBy: user._id
+                    dueDate: issueForm.dueDate
                   })
                 });
-                console.log('Response status:', response.status);
+                
                 const responseData = await response.json();
-                console.log('Response data:', responseData);
                 
                 if (response.ok) {
                   success('Book issued successfully');
                   setIsIssueDialogOpen(false);
                   setIssueForm({ memberId: '', bookId: '', dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
+                  loadLibraryData();
                 } else {
-                  warning(`Failed to issue book: ${responseData.message || 'Unknown error'}`);
+                  warning(responseData.message || 'Failed to issue book');
                 }
               } catch (err) {
                 console.error('Issue book error:', err);
@@ -437,35 +481,51 @@ const LibrarianDashboard = () => {
         minWidth={400}
       >
         <Stack tokens={{ childrenGap: 16 }}>
-          <TextField 
-            label="Transaction ID" 
-            placeholder="Enter transaction ID" 
-            value={returnForm.transactionId}
-            onChange={(e, value) => setReturnForm({...returnForm, transactionId: value || ''})}
+          <ComboBox
+            label="Select Member"
+            options={members.map(m => ({ key: m._id, text: `${m.name} (${m.memberId})` }))}
+            selectedKey={returnForm.memberId}
+            onChange={(e, option) => setReturnForm({...returnForm, memberId: option.key})}
+            placeholder="Search and select a member"
+            allowFreeform={false}
+            autoComplete="on"
           />
-          <TextField label="Fine Amount (₹)" value="0" type="number" readOnly />
+          <ComboBox
+            label="Select Book"
+            options={books.map(b => ({ key: b._id, text: `${b.title} - ${b.author}` }))}
+            selectedKey={returnForm.bookId}
+            onChange={(e, option) => setReturnForm({...returnForm, bookId: option.key})}
+            placeholder="Search and select a book"
+            allowFreeform={false}
+            autoComplete="on"
+          />
         </Stack>
         <DialogFooter>
           <PrimaryButton 
             onClick={async () => {
+              if (!returnForm.memberId || !returnForm.bookId) {
+                warning('Please select both member and book');
+                return;
+              }
+              
               try {
-                const response = await fetch(`http://localhost:5000/api/transactions/${returnForm.transactionId}`, {
-                  method: 'PUT',
+                const response = await fetch(`http://localhost:5000/api/books/${returnForm.bookId}/return`, {
+                  method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                   },
-                  body: JSON.stringify({
-                    type: 'return',
-                    processedBy: user._id
-                  })
+                  body: JSON.stringify({ memberId: returnForm.memberId })
                 });
+                
+                const data = await response.json();
                 if (response.ok) {
-                  success('Book returned successfully');
+                  success(`Book returned successfully${data.fine > 0 ? `. Fine: ₹${data.fine}` : ''}`);
                   setIsReturnDialogOpen(false);
-                  setReturnForm({ transactionId: '' });
+                  setReturnForm({ memberId: '', bookId: '' });
+                  loadLibraryData();
                 } else {
-                  warning('Failed to return book');
+                  warning(data.message || 'Failed to return book');
                 }
               } catch (err) {
                 warning('Failed to return book');

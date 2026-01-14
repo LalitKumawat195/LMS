@@ -1,14 +1,190 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Transaction = require('./Transaction');
 const Book = require('./Book');
-const auth = require('./auth');
+
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.user = {
+      id: decoded.userId,
+      userId: decoded.userId,
+      name: decoded.name,
+      role: decoded.role
+    };
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+// Get user's stats (Member only)
+router.get('/my-stats', verifyToken, async (req, res) => {
+  try {
+    await Transaction.updateMany(
+      { type: 'issue', status: 'active', dueDate: { $lt: new Date() } },
+      { status: 'overdue' }
+    );
+
+    const borrowed = await Transaction.countDocuments({
+      memberId: req.user.id,
+      type: 'issue',
+      status: { $in: ['active', 'overdue'] }
+    });
+
+    const overdue = await Transaction.countDocuments({
+      memberId: req.user.id,
+      type: 'issue',
+      status: 'overdue'
+    });
+
+    const fineTransactions = await Transaction.find({
+      memberId: req.user.id,
+      fine: { $gt: 0 }
+    });
+
+    const totalFines = fineTransactions.reduce((sum, t) => sum + (t.fine || 0), 0);
+
+    res.json({
+      borrowedBooks: borrowed,
+      maxBooks: 5,
+      overdueBooks: overdue,
+      fines: totalFines
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user's issued books (Member only)
+router.get('/my-books', verifyToken, async (req, res) => {
+  try {
+    await Transaction.updateMany(
+      { type: 'issue', status: 'active', dueDate: { $lt: new Date() } },
+      { status: 'overdue' }
+    );
+
+    const transactions = await Transaction.find({
+      memberId: req.user.id,
+      type: 'issue',
+      status: { $in: ['active', 'overdue'] }
+    })
+    .populate('bookId', 'title author isbn category publisher year location available copies')
+    .sort({ createdAt: -1 });
+    
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user's transaction history (Member only)
+router.get('/my-history', verifyToken, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({
+      memberId: req.user.id
+    })
+    .populate('bookId', 'title author isbn category')
+    .sort({ createdAt: -1 })
+    .limit(50);
+    
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Request renewal (Member only) - must be before /:id routes
+router.post('/:id/renew-request', verifyToken, async (req, res) => {
+  try {
+    const RenewRequest = require('./RenewRequest');
+    const transaction = await Transaction.findById(req.params.id);
+    
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (transaction.memberId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const existingRequest = await RenewRequest.findOne({
+      transactionId: transaction._id,
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ message: 'Renewal request already exists' });
+    }
+
+    const renewRequest = new RenewRequest({
+      transactionId: transaction._id,
+      userId: req.user.id,
+      status: 'pending'
+    });
+    await renewRequest.save();
+
+    res.json({ message: 'Renewal request submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Renew transaction (Librarian/Admin only) - must be before /:id route
+router.post('/:id/renew', verifyToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (transaction.status !== 'active' && transaction.status !== 'overdue') {
+      return res.status(400).json({ message: 'Only active or overdue transactions can be renewed' });
+    }
+
+    // Extend due date by 7 days
+    const newDueDate = new Date(transaction.dueDate);
+    newDueDate.setDate(newDueDate.getDate() + 7);
+
+    // Create renewal transaction record
+    const renewalTransaction = new Transaction({
+      bookId: transaction.bookId,
+      memberId: transaction.memberId,
+      type: 'renew',
+      dueDate: newDueDate,
+      processedBy: req.user.id
+    });
+    await renewalTransaction.save();
+
+    // Update original transaction
+    transaction.dueDate = newDueDate;
+    transaction.status = 'active';
+    await transaction.save();
+
+    const populatedTransaction = await Transaction.findById(transaction._id)
+      .populate('bookId', 'title author isbn category publisher year location available copies')
+      .populate('memberId', 'name email memberId')
+      .populate('processedBy', 'name email');
+
+    res.json(populatedTransaction);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // Get all transactions
-router.get('/', auth, async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const transactions = await Transaction.find()
       .populate('bookId', 'title author isbn')
+      .populate('memberId', 'name email memberId')
       .populate('processedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json(transactions);
@@ -18,7 +194,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create new transaction (issue book)
-router.post('/', auth, async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
     const { bookId, memberId, type, dueDate } = req.body;
     
@@ -59,8 +235,10 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+
+
 // Update transaction (return book)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) {
@@ -95,6 +273,7 @@ router.put('/:id', auth, async (req, res) => {
 
     const populatedTransaction = await Transaction.findById(transaction._id)
       .populate('bookId', 'title author isbn')
+      .populate('memberId', 'name email memberId')
       .populate('processedBy', 'name email');
 
     res.json(populatedTransaction);

@@ -24,7 +24,7 @@ import { useTheme } from './ThemeContext';
 import { useNotifications } from './NotificationContext';
 import MemberDetails from './MemberDetails';
 
-const LibrarianUserManagement = () => {
+const LibrarianUserManagement = ({ showAddDialog, onCloseAddDialog }) => {
   const { isDark } = useTheme();
   const { success, warning, error } = useNotifications();
   
@@ -44,6 +44,12 @@ const LibrarianUserManagement = () => {
     status: 'Active'
   });
   const [showUserDetailsPanel, setShowUserDetailsPanel] = useState(false);
+
+  useEffect(() => {
+    if (showAddDialog) {
+      setIsAddUserDialogOpen(true);
+    }
+  }, [showAddDialog]);
 
   useEffect(() => {
     fetchUsers();
@@ -116,6 +122,7 @@ const LibrarianUserManagement = () => {
         fetchUsers();
         setNewUser({ name: '', email: '', department: '', phone: '', status: 'Active' });
         setIsAddUserDialogOpen(false);
+        if (onCloseAddDialog) onCloseAddDialog();
         success(`Member ${newUser.name} added successfully`);
       } else {
         error(data.message || 'Failed to add member');
@@ -406,7 +413,10 @@ const LibrarianUserManagement = () => {
       {/* Add Member Dialog */}
       <Dialog
         hidden={!isAddUserDialogOpen}
-        onDismiss={() => setIsAddUserDialogOpen(false)}
+        onDismiss={() => {
+          setIsAddUserDialogOpen(false);
+          if (onCloseAddDialog) onCloseAddDialog();
+        }}
         dialogContentProps={{
           type: DialogType.normal,
           title: 'Add New Member'
@@ -456,7 +466,10 @@ const LibrarianUserManagement = () => {
         </Stack>
         <DialogFooter>
           <PrimaryButton text="Add Member" onClick={handleAddUser} disabled={loading} />
-          <DefaultButton text="Cancel" onClick={() => setIsAddUserDialogOpen(false)} />
+          <DefaultButton text="Cancel" onClick={() => {
+            setIsAddUserDialogOpen(false);
+            if (onCloseAddDialog) onCloseAddDialog();
+          }} />
         </DialogFooter>
       </Dialog>
     </Stack>

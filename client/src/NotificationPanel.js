@@ -46,6 +46,8 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuTarget, setContextMenuTarget] = useState(null);
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [detailsNotification, setDetailsNotification] = useState(null);
 
   const typeOptions = [
     { key: 'All', text: 'All notifications', data: { icon: 'BulletedList' } },
@@ -116,8 +118,26 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
         });
       }
       await loadNotifications();
+      success('Marked as read');
     } catch (err) {
       console.error('Error marking as read:', err);
+      error('Failed to mark as read');
+    }
+  };
+
+  const markAsUnread = async (notificationId) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${notificationId}/unread`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      await loadNotifications();
+      success('Marked as unread');
+    } catch (err) {
+      console.error('Error marking as unread:', err);
+      error('Failed to mark as unread');
     }
   };
 
@@ -190,7 +210,7 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
     if (selectedNotifications.size === filteredNotifications.length) {
       setSelectedNotifications(new Set());
     } else {
-      setSelectedNotifications(new Set(filteredNotifications.map(n => n.id)));
+      setSelectedNotifications(new Set(filteredNotifications.map(n => n._id)));
     }
   };
 
@@ -232,10 +252,17 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
   const contextMenuItems = [
     {
       key: 'markRead',
-      text: 'Mark as read',
+      text: notifications.find(n => n._id === selectedNotificationId)?.read ? 'Mark as unread' : 'Mark as read',
       iconProps: { iconName: 'ReadingMode' },
       onClick: () => {
-        markAsRead(selectedNotificationId);
+        if (selectedNotificationId) {
+          const notification = notifications.find(n => n._id === selectedNotificationId);
+          if (notification?.read) {
+            markAsUnread(selectedNotificationId);
+          } else {
+            markAsRead(selectedNotificationId);
+          }
+        }
         setShowContextMenu(false);
       }
     },
@@ -244,7 +271,9 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
       text: 'Delete',
       iconProps: { iconName: 'Delete' },
       onClick: () => {
-        deleteNotifications(selectedNotificationId);
+        if (selectedNotificationId) {
+          deleteNotifications(selectedNotificationId);
+        }
         setShowContextMenu(false);
       }
     },
@@ -257,7 +286,11 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
       text: 'View details',
       iconProps: { iconName: 'View' },
       onClick: () => {
-        success('Notification details opened');
+        const notification = notifications.find(n => n._id === selectedNotificationId);
+        if (notification) {
+          setDetailsNotification(notification);
+          setShowDetailsDialog(true);
+        }
         setShowContextMenu(false);
       }
     }
@@ -545,15 +578,15 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
               </MessageBar>
             ) : (
               filteredNotifications.map(notification => {
-                const isSelected = selectedNotifications.has(notification.id);
+                const isSelected = selectedNotifications.has(notification._id);
                 return (
                   <div 
-                    key={notification.id} 
+                    key={notification._id} 
                     className={notificationCardStyle(notification.read, notification.priority, isSelected)}
-                    onClick={() => !notification.read && markAsRead(notification.id)}
+                    onClick={() => !notification.read && markAsRead(notification._id)}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      setSelectedNotificationId(notification.id);
+                      setSelectedNotificationId(notification._id);
                       setContextMenuTarget(e.target);
                       setShowContextMenu(true);
                     }}
@@ -582,7 +615,7 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
                       {/* Checkbox */}
                       <Checkbox
                         checked={isSelected}
-                        onChange={() => toggleNotificationSelection(notification.id)}
+                        onChange={() => toggleNotificationSelection(notification._id)}
                         styles={{
                           root: {
                             marginTop: '2px'
@@ -665,7 +698,8 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
                                 iconProps={{ iconName: 'MoreVertical' }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedNotificationId(notification.id);
+                                  e.preventDefault();
+                                  setSelectedNotificationId(notification._id);
                                   setContextMenuTarget(e.currentTarget);
                                   setShowContextMenu(true);
                                 }}
@@ -752,6 +786,70 @@ const NotificationPanel = ({ isOpen, onDismiss, user }) => {
             onDismiss={() => setShowContextMenu(false)}
             directionalHint={DirectionalHint.bottomLeftEdge}
           />
+        )}
+
+        {/* Details Dialog */}
+        {showDetailsDialog && detailsNotification && (
+          <Layer>
+            <Overlay onClick={() => setShowDetailsDialog(false)} />
+            <FocusTrapZone>
+              <Callout
+                target={contextMenuTarget}
+                onDismiss={() => setShowDetailsDialog(false)}
+                setInitialFocus
+                styles={{
+                  root: {
+                    width: '400px',
+                    padding: '24px',
+                    background: isDark ? '#323130' : '#ffffff'
+                  }
+                }}
+              >
+                <Stack tokens={{ childrenGap: 16 }}>
+                  <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+                    <Text variant="xLarge" styles={{ root: { fontWeight: FontWeights.semibold } }}>
+                      Notification Details
+                    </Text>
+                    <ActionButton
+                      iconProps={{ iconName: 'Cancel' }}
+                      onClick={() => setShowDetailsDialog(false)}
+                    />
+                  </Stack>
+                  <Separator />
+                  <Stack tokens={{ childrenGap: 12 }}>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>Title</Text>
+                      <Text variant="medium">{detailsNotification.title}</Text>
+                    </Stack>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>Message</Text>
+                      <Text variant="medium">{detailsNotification.message}</Text>
+                    </Stack>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>From</Text>
+                      <Text variant="medium">{detailsNotification.sender}</Text>
+                    </Stack>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>Time</Text>
+                      <Text variant="medium">{new Date(detailsNotification.timestamp).toLocaleString()}</Text>
+                    </Stack>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>Category</Text>
+                      <Text variant="medium">{detailsNotification.category}</Text>
+                    </Stack>
+                    <Stack tokens={{ childrenGap: 4 }}>
+                      <Text variant="small" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', fontWeight: FontWeights.semibold } }}>Status</Text>
+                      <Text variant="medium">{detailsNotification.read ? 'Read' : 'Unread'}</Text>
+                    </Stack>
+                  </Stack>
+                  <Separator />
+                  <Stack horizontal tokens={{ childrenGap: 8 }} horizontalAlign="end">
+                    <DefaultButton text="Close" onClick={() => setShowDetailsDialog(false)} />
+                  </Stack>
+                </Stack>
+              </Callout>
+            </FocusTrapZone>
+          </Layer>
         )}
 
         {/* Footer */}

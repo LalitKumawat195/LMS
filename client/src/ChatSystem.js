@@ -104,6 +104,10 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
   useEffect(() => {
     if (selectedChat) {
       loadMessages(selectedChat.id);
+      // Reset unread count in local state
+      setChats(prev => prev.map(chat => 
+        chat.id === selectedChat.id ? { ...chat, unreadCount: 0 } : chat
+      ));
     }
   }, [selectedChat]);
 
@@ -144,7 +148,12 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        setChats(data);
+        const sortedChats = data.sort((a, b) => {
+          const dateA = a.lastMessageAt ? new Date(a.lastMessageAt) : new Date(0);
+          const dateB = b.lastMessageAt ? new Date(b.lastMessageAt) : new Date(0);
+          return dateB - dateA;
+        });
+        setChats(sortedChats);
       }
     } catch (err) {
       console.error('Error loading chats:', err);
@@ -170,8 +179,10 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
   const sendMessage = async () => {
     if (!message.trim() || !selectedChat) return;
 
-    setIsTyping(true);
     const messageContent = replyToMessage ? `@${replyToMessage.senderName}: ${message}` : message;
+    const tempMessage = message;
+    setMessage('');
+    setIsTyping(true);
 
     try {
       const response = await fetch(`http://localhost:5000/api/chats/${selectedChat.id}/messages`, {
@@ -187,13 +198,22 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
       });
 
       if (response.ok) {
-        setMessage('');
         setReplyToMessage(null);
         loadMessages(selectedChat.id);
-        loadChats();
+        setChats(prev => prev.map(chat => 
+          chat.id === selectedChat.id 
+            ? { ...chat, lastMessage: messageContent, lastMessageAt: new Date().toISOString() }
+            : chat
+        ).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)));
+      } else {
+        setMessage(tempMessage);
+        const errorData = await response.json();
+        success(errorData.message || 'Failed to send message');
       }
     } catch (err) {
       console.error('Error sending message:', err);
+      setMessage(tempMessage);
+      success('Failed to send message');
     } finally {
       setIsTyping(false);
     }
@@ -268,10 +288,10 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
 
       if (response.ok) {
         const newChat = await response.json();
-        setSelectedChat(newChat);
         setShowNewChatDialog(false);
         setSelectedUser(null);
-        loadChats();
+        setChats(prev => [newChat, ...prev]);
+        setSelectedChat(newChat);
         success('Chat started');
       } else if (response.status === 403) {
         const error = await response.json();
@@ -590,7 +610,14 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
             </Stack>
             
             <FocusZone direction={FocusZoneDirection.vertical} styles={{ root: { flex: 1, overflowY: 'auto' } }}>
-              {filteredChats.map(chat => {
+              {filteredChats.length === 0 ? (
+                <Stack horizontalAlign="center" styles={{ root: { padding: '20px' } }}>
+                  <Text variant="small" styles={{ root: { color: teamsColors.textSecondary } }}>
+                    {searchQuery ? 'No chats found' : 'No chats yet. Start a new chat!'}
+                  </Text>
+                </Stack>
+              ) : (
+                filteredChats.map(chat => {
                 const isOnline = onlineUsers.includes(chat.name?.toLowerCase());
                 const isSelected = selectedChat?.id === chat.id;
                 
@@ -669,10 +696,28 @@ const ChatSystem = ({ isOpen, onDismiss }) => {
                           {chat.lastMessage || 'No messages yet'}
                         </Text>
                       </Stack>
+                      {chat.unreadCount > 0 && (
+                        <div style={{
+                          minWidth: '18px',
+                          height: '18px',
+                          borderRadius: '9px',
+                          background: '#c4314b',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          padding: '0 5px',
+                          lineHeight: '1'
+                        }}>
+                          {chat.unreadCount > 9 ? '9+' : chat.unreadCount}
+                        </div>
+                      )}
                     </Stack>
                   </Stack>
                 );
-              })}
+              }))}
             </FocusZone>
           </Stack>
 

@@ -265,13 +265,33 @@ const BooksManagement = () => {
 
     setLoading(true);
     try {
+      // Find user by memberId to get the actual _id
+      const userResponse = await fetch('http://localhost:5000/api/users', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (!userResponse.ok) {
+        error('Failed to fetch user data');
+        setLoading(false);
+        return;
+      }
+      
+      const users = await userResponse.json();
+      const member = users.find(u => u.memberId === memberInfo.memberId);
+      
+      if (!member) {
+        error('Member not found');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`http://localhost:5000/api/books/${selectedBook._id}/issue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ memberId: memberInfo.memberId })
+        body: JSON.stringify({ memberId: member._id })
       });
       
       const data = await response.json();
@@ -299,13 +319,33 @@ const BooksManagement = () => {
 
     setLoading(true);
     try {
+      // Find user by memberId to get the actual _id
+      const userResponse = await fetch('http://localhost:5000/api/users', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      if (!userResponse.ok) {
+        error('Failed to fetch user data');
+        setLoading(false);
+        return;
+      }
+      
+      const users = await userResponse.json();
+      const member = users.find(u => u.memberId === memberInfo.memberId);
+      
+      if (!member) {
+        error('Member not found');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`http://localhost:5000/api/books/${selectedBook._id}/return`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ memberId: memberInfo.memberId })
+        body: JSON.stringify({ memberId: member._id })
       });
       
       const data = await response.json();

@@ -497,7 +497,7 @@ const OverdueManagement = () => {
             {item.memberName}
           </Text>
           <Text styles={{ root: { fontSize: '12px', fontFamily: 'monospace' } }}>
-            ID: {item.memberId}
+            ID: {item.memberId?.memberId || item.memberId}
           </Text>
           <Text styles={{ root: { fontSize: '12px', color: '#605e5c' } }}>
             {item.memberEmail}

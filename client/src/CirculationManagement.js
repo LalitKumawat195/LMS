@@ -174,56 +174,57 @@ const CirculationManagement = () => {
   };
 
   const handleRenewalBook = async () => {
+    if (!renewalForm.transactionId || !renewalForm.newDueDate) {
+      error('Transaction ID and new due date are required');
+      return;
+    }
+
     try {
-      const response = await fetch(`http://localhost:5000/api/transactions/${renewalForm.transactionId}`, {
+      console.log('Renewing transaction:', renewalForm);
+      const response = await fetch(`http://localhost:5000/api/transactions/${renewalForm.transactionId}/renew`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          dueDate: renewalForm.newDueDate,
-          processedBy: user._id
+          dueDate: renewalForm.newDueDate
         })
       });
 
+      const data = await response.json();
+      console.log('Renew response:', data);
+      
       if (response.ok) {
         success('Book renewed successfully');
         setIsRenewalDialogOpen(false);
         setRenewalForm({ transactionId: '', newDueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
         loadData();
       } else {
-        throw new Error('Failed to renew book');
+        error(data.message || 'Failed to renew book');
       }
     } catch (err) {
-      error('Failed to renew book');
+      console.error('Renew error:', err);
+      error('Failed to renew book: ' + err.message);
     }
   };
 
   const commandBarItems = [
     {
-      key: 'issue',
-      text: 'Issue Book',
-      iconProps: { iconName: 'Add' },
-      onClick: () => setIsIssueDialogOpen(true)
-    },
-    {
-      key: 'return',
-      text: 'Return Book',
-      iconProps: { iconName: 'Undo' },
-      onClick: () => setIsReturnDialogOpen(true)
-    },
-    {
-      key: 'renewal',
-      text: 'Renew Book',
-      iconProps: { iconName: 'Refresh' },
-      onClick: () => setIsRenewalDialogOpen(true)
+      key: 'refresh',
+      text: 'Refresh',
+      iconProps: { iconName: 'Sync' },
+      onClick: () => {
+        loadData();
+        success('Data refreshed successfully');
+      }
     }
   ];
 
   const transactionColumns = [
     { key: 'bookTitle', name: 'Book', minWidth: 200, onRender: (item) => item.bookId?.title || 'N/A' },
-    { key: 'memberName', name: 'Member', minWidth: 150, onRender: (item) => item.memberId || 'N/A' },
+    { key: 'memberId', name: 'Member ID', minWidth: 100, onRender: (item) => item.memberId?.memberId || item.memberId || 'N/A' },
+    { key: 'memberName', name: 'Member Name', minWidth: 150, onRender: (item) => item.memberId?.name || 'N/A' },
     { key: 'issueDate', name: 'Issue Date', minWidth: 100, onRender: (item) => new Date(item.issueDate).toLocaleDateString() },
     { key: 'dueDate', name: 'Due Date', minWidth: 100, onRender: (item) => new Date(item.dueDate).toLocaleDateString() },
     { 
@@ -250,9 +251,30 @@ const CirculationManagement = () => {
         <Stack horizontal tokens={{ childrenGap: 8 }}>
           <DefaultButton
             text="Return"
-            onClick={() => {
-              setReturnForm({ transactionId: item._id, fine: item.fine || 0 });
-              setIsReturnDialogOpen(true);
+            onClick={async () => {
+              if (!item.bookId?._id || !item.memberId?._id) {
+                error('Invalid transaction data');
+                return;
+              }
+              try {
+                const response = await fetch(`http://localhost:5000/api/books/${item.bookId._id}/return`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  },
+                  body: JSON.stringify({ memberId: item.memberId._id })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                  success(`Book returned successfully${data.fine > 0 ? `. Fine: ₹${data.fine}` : ''}`);
+                  loadData();
+                } else {
+                  error(data.message || 'Failed to return book');
+                }
+              } catch (err) {
+                error('Failed to return book');
+              }
             }}
             styles={{ root: { minWidth: '60px' } }}
           />
@@ -271,7 +293,8 @@ const CirculationManagement = () => {
 
   const todayColumns = [
     { key: 'bookTitle', name: 'Book', minWidth: 200, onRender: (item) => item.bookId?.title || 'N/A' },
-    { key: 'memberName', name: 'Member', minWidth: 150, onRender: (item) => item.memberId || 'N/A' },
+    { key: 'memberId', name: 'Member ID', minWidth: 100, onRender: (item) => item.memberId?.memberId || item.memberId || 'N/A' },
+    { key: 'memberName', name: 'Member Name', minWidth: 150, onRender: (item) => item.memberId?.name || 'N/A' },
     { key: 'type', name: 'Type', minWidth: 80, onRender: (item) => item.type.toUpperCase() },
     { key: 'time', name: 'Time', minWidth: 100, onRender: (item) => new Date(item.createdAt).toLocaleTimeString() },
     { key: 'processedBy', name: 'Processed By', minWidth: 120, onRender: (item) => item.processedBy?.name || 'N/A' }
@@ -340,6 +363,8 @@ const CirculationManagement = () => {
         </div>
       </Stack>
 
+      <CommandBar items={commandBarItems} />
+
       {overdueTransactions.length > 0 && (
         <MessageBar messageBarType={MessageBarType.warning}>
           {overdueTransactions.length} book(s) are overdue. Please follow up with members.
@@ -366,7 +391,8 @@ const CirculationManagement = () => {
               items={activeTransactions.filter(t => 
                 !searchValue || 
                 t.bookId?.title?.toLowerCase().includes(searchValue.toLowerCase()) ||
-                t.memberId?.toLowerCase().includes(searchValue.toLowerCase())
+                t.memberId?.memberId?.toLowerCase().includes(searchValue.toLowerCase()) ||
+                t.memberId?.name?.toLowerCase().includes(searchValue.toLowerCase())
               )}
               columns={transactionColumns}
               selectionMode={SelectionMode.none}
@@ -378,7 +404,8 @@ const CirculationManagement = () => {
               items={overdueTransactions.filter(t => 
                 !searchValue || 
                 t.bookId?.title?.toLowerCase().includes(searchValue.toLowerCase()) ||
-                t.memberId?.toLowerCase().includes(searchValue.toLowerCase())
+                t.memberId?.memberId?.toLowerCase().includes(searchValue.toLowerCase()) ||
+                t.memberId?.name?.toLowerCase().includes(searchValue.toLowerCase())
               )}
               columns={transactionColumns}
               selectionMode={SelectionMode.none}
@@ -390,7 +417,8 @@ const CirculationManagement = () => {
               items={todayTransactions.filter(t => 
                 !searchValue || 
                 t.bookId?.title?.toLowerCase().includes(searchValue.toLowerCase()) ||
-                t.memberId?.toLowerCase().includes(searchValue.toLowerCase())
+                t.memberId?.memberId?.toLowerCase().includes(searchValue.toLowerCase()) ||
+                t.memberId?.name?.toLowerCase().includes(searchValue.toLowerCase())
               )}
               columns={todayColumns}
               selectionMode={SelectionMode.none}

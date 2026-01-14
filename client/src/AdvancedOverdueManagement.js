@@ -336,7 +336,7 @@ const AdvancedOverdueManagement = () => {
             {item.memberName}
           </Text>
           <Text variant="small" styles={{ root: { fontFamily: 'monospace' } }}>
-            {item.memberId} • {item.memberType}
+            {item.memberId?.memberId || item.memberId} • {item.memberType}
           </Text>
           <Text variant="small" styles={{ root: { color: '#666' } }}>
             {item.department}

@@ -43,6 +43,7 @@ const RoleDashboard = () => {
   const [isHelpDeskOpen, setIsHelpDeskOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [totalUnreadChats, setTotalUnreadChats] = useState(0);
 
   // Load notifications and update when changed
   useEffect(() => {
@@ -62,10 +63,31 @@ const RoleDashboard = () => {
       }
     };
     
+    const loadUnreadChats = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/chats', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const total = data.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+          setTotalUnreadChats(total);
+        }
+      } catch (err) {
+        console.error('Error loading chats:', err);
+      }
+    };
+    
     loadNotifications();
+    loadUnreadChats();
     
     // Poll for changes every 30 seconds
-    const interval = setInterval(loadNotifications, 30000);
+    const interval = setInterval(() => {
+      loadNotifications();
+      loadUnreadChats();
+    }, 30000);
     
     return () => {
       clearInterval(interval);
@@ -354,21 +376,45 @@ const RoleDashboard = () => {
               }}
             />
 
-            <IconButton
-              iconProps={{ iconName: 'Chat' }}
-              onClick={() => setIsChatOpen(true)}
-              title="Chat"
-              styles={{
-                root: {
-                  width: '32px',
-                  height: '32px',
-                  color: isDark ? '#ffffff' : '#323130',
-                  ':hover': {
-                    backgroundColor: isDark ? '#484644' : '#f3f2f1'
+            <div style={{ position: 'relative' }}>
+              <IconButton
+                iconProps={{ iconName: 'Chat' }}
+                onClick={() => setIsChatOpen(true)}
+                title="Chat"
+                styles={{
+                  root: {
+                    width: '32px',
+                    height: '32px',
+                    color: isDark ? '#ffffff' : '#323130',
+                    ':hover': {
+                      backgroundColor: isDark ? '#484644' : '#f3f2f1'
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+              {totalUnreadChats > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '6px',
+                  right: '6px',
+                  background: '#c4314b',
+                  color: '#ffffff',
+                  borderRadius: '50%',
+                  width: '10px',
+                  height: '10px',
+                  fontSize: '7px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: '1',
+                  pointerEvents: 'none',
+                  border: '1px solid ' + (isDark ? '#323130' : '#ffffff')
+                }}>
+                  {totalUnreadChats > 9 ? '' : totalUnreadChats}
+                </div>
+              )}
+            </div>
 
             <IconButton
               iconProps={{ iconName: 'Settings' }}
