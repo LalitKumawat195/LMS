@@ -138,7 +138,7 @@ router.post('/:id/renew-request', verifyToken, async (req, res) => {
 });
 
 // Renew transaction (Librarian/Admin only) - must be before /:id route
-router.post('/:id/renew', verifyToken, async (req, res) => {
+router.put('/:id/renew', verifyToken, async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) {
@@ -149,9 +149,11 @@ router.post('/:id/renew', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Only active or overdue transactions can be renewed' });
     }
 
-    // Extend due date by 7 days
-    const newDueDate = new Date(transaction.dueDate);
-    newDueDate.setDate(newDueDate.getDate() + 7);
+    // Use provided due date or extend by 7 days
+    const newDueDate = req.body.dueDate ? new Date(req.body.dueDate) : new Date(transaction.dueDate);
+    if (!req.body.dueDate) {
+      newDueDate.setDate(newDueDate.getDate() + 7);
+    }
 
     // Create renewal transaction record
     const renewalTransaction = new Transaction({

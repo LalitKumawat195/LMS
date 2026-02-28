@@ -289,9 +289,6 @@ const AdminDashboard = () => {
         <PivotItem headerText="User Management" itemKey="users" />
         <PivotItem headerText="Books Management" itemKey="books" />
         <PivotItem headerText="Book Requests" itemKey="requests" />
-        <PivotItem headerText="System Monitoring" itemKey="monitoring" />
-        <PivotItem headerText="Analytics" itemKey="analytics" />
-        <PivotItem headerText="Settings" itemKey="settings" />
       </Pivot>
 
       {/* Content */}
@@ -367,81 +364,6 @@ const AdminDashboard = () => {
 
       {selectedPivot === 'requests' && (
         <BookRequestManagement />
-      )}
-
-      {selectedPivot === 'monitoring' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="Health" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                System Monitoring
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Real-time system monitoring dashboard with alerts, performance metrics, and comprehensive system health tracking.
-            </Text>
-          </Stack>
-        </div>
-      )}
-
-      {selectedPivot === 'analytics' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="BarChart4" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                Analytics
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Advanced analytics dashboard with detailed reports, usage statistics, and comprehensive data visualization tools.
-            </Text>
-          </Stack>
-        </div>
-      )}
-
-      {selectedPivot === 'settings' && (
-        <div style={{
-          padding: '64px 32px',
-          textAlign: 'center',
-          background: isDark ? '#323130' : '#ffffff',
-          border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}`,
-          borderRadius: '8px'
-        }}>
-          <Stack tokens={{ childrenGap: 24 }} horizontalAlign="center">
-            <Icon iconName="Settings" styles={{ root: { fontSize: '48px', color: isDark ? '#605e5c' : '#a19f9d' } }} />
-            <Stack tokens={{ childrenGap: 8 }} horizontalAlign="center">
-              <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: isDark ? '#ffffff' : '#323130' } }}>
-                System Settings
-              </Text>
-              <Text variant="large" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c', maxWidth: '400px' } }}>
-                Coming Soon
-              </Text>
-            </Stack>
-            <Text variant="medium" styles={{ root: { color: isDark ? '#a19f9d' : '#8a8886', maxWidth: '500px', lineHeight: '1.5' } }}>
-              Comprehensive system configuration panel with library policies, parameters, and administrative settings.
-            </Text>
-          </Stack>
-        </div>
       )}
     </Stack>
   );

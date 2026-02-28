@@ -341,6 +341,50 @@ router.post('/:id/issue', verifyToken, checkLibrarianOrAdmin, async (req, res) =
   }
 });
 
+// Renew book (Librarian/Admin only)
+router.post('/:id/renew', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
+  try {
+    const { memberId } = req.body;
+    
+    if (!memberId) {
+      return res.status(400).json({ message: 'Member ID is required' });
+    }
+
+    const book = await Book.findById(req.params.id);
+    
+    if (!book) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+
+    // Find active transaction for this book and member
+    const activeTransaction = await Transaction.findOne({
+      bookId: book._id,
+      memberId: memberId,
+      status: { $in: ['active', 'overdue'] }
+    });
+
+    if (!activeTransaction) {
+      return res.status(400).json({ message: 'No active issue found for this member' });
+    }
+
+    // Extend due date by 7 days
+    const newDueDate = new Date(activeTransaction.dueDate);
+    newDueDate.setDate(newDueDate.getDate() + 7);
+    
+    activeTransaction.dueDate = newDueDate;
+    activeTransaction.status = 'active'; // Reset to active if it was overdue
+    await activeTransaction.save();
+
+    res.json({ 
+      message: 'Book renewed successfully', 
+      transaction: activeTransaction,
+      newDueDate: newDueDate
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Return book (Librarian/Admin only)
 router.post('/:id/return', verifyToken, checkLibrarianOrAdmin, async (req, res) => {
   try {
