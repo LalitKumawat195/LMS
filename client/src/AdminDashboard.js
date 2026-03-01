@@ -31,21 +31,44 @@ import BookRequestManagement from './BookRequestManagement';
 const AdminDashboard = () => {
   const { user } = useAuth();
   const { isDark } = useTheme();
-  const { success, warning, info, error } = useNotifications();
+  const { success, warning, info } = useNotifications();
   const [selectedPivot, setSelectedPivot] = useState('overview');
   const [searchValue, setSearchValue] = useState('');
   const [isBooksManagementOpen, setIsBooksManagementOpen] = useState(false);
 
   const [adminData, setAdminData] = useState({
-    totalBooks: 2847,
-    totalMembers: 1234,
-    totalLibrarians: 8,
-    systemHealth: 98.5,
-    dailyTransactions: 156,
-    monthlyRevenue: 12450,
-    storageUsed: 75,
-    activeUsers: 342
+    totalBooks: 0,
+    totalMembers: 0,
+    totalLibrarians: 0,
+    dailyTransactions: 0,
+    monthlyRevenue: 0,
+    outstandingFines: 0,
+    collectionRate: 0
   });
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/admin-stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setAdminData(prev => ({ ...prev, ...data }));
+      setLastUpdated(new Date());
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const cardStyle = mergeStyles({
     background: isDark ? '#323130' : '#ffffff',
@@ -156,19 +179,42 @@ const AdminDashboard = () => {
       key: 'backup',
       text: 'Backup System',
       iconProps: { iconName: 'CloudUpload' },
-      onClick: () => success('System backup initiated...')
+      onClick: async () => {
+        try {
+          info('Generating backup...');
+          const token = localStorage.getItem('token');
+          const response = await fetch('http://localhost:5000/api/admin-actions/backup', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `lms-backup-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          success(`Backup downloaded! ${data.stats.books} books, ${data.stats.users} users, ${data.stats.transactions} transactions`);
+        } catch (err) {
+          console.error('Backup error:', err);
+          warning('Backup failed: ' + err.message);
+        }
+      }
     },
     {
       key: 'maintenance',
       text: 'Maintenance Mode',
       iconProps: { iconName: 'Settings' },
-      onClick: () => warning('Maintenance mode activated')
-    },
-    {
-      key: 'reports',
-      text: 'Generate Reports',
-      iconProps: { iconName: 'BarChart4' },
-      onClick: () => success('Generating comprehensive reports...')
+      onClick: () => warning('Maintenance mode feature coming soon')
     }
   ];
 
@@ -176,19 +222,37 @@ const AdminDashboard = () => {
     <Stack tokens={{ childrenGap: 24 }} styles={{ root: { padding: '24px', maxWidth: '1600px', margin: '0 auto' } }}>
       {/* Header */}
       <Stack tokens={{ childrenGap: 8 }}>
-        <Text variant="xxLarge" styles={{ 
-          root: { 
-            fontWeight: FontWeights.bold,
-            background: 'linear-gradient(135deg, #d13438, #a4262c)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          } 
-        }}>
-          System Administration
-        </Text>
-        <Text variant="medium" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
-          Monitor system health, manage users, and oversee library operations.
-        </Text>
+        <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+          <Stack tokens={{ childrenGap: 8 }}>
+            <Text variant="xxLarge" styles={{ 
+              root: { 
+                fontWeight: FontWeights.bold,
+                background: 'linear-gradient(135deg, #d13438, #a4262c)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              } 
+            }}>
+              System Administration
+            </Text>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+              Monitor system health, manage users, and oversee library operations.
+            </Text>
+          </Stack>
+          <Stack tokens={{ childrenGap: 4 }} horizontalAlign="end">
+            <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+              <Icon iconName="Sync" styles={{ root: { color: '#0078d4', fontSize: '14px' } }} />
+              <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+                {loading ? 'Updating...' : lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString()}` : 'Loading...'}
+              </Text>
+            </Stack>
+            <DefaultButton
+              text="Refresh"
+              iconProps={{ iconName: 'Refresh' }}
+              onClick={fetchStats}
+              disabled={loading}
+            />
+          </Stack>
+        </Stack>
       </Stack>
 
       {/* Quick Actions */}
@@ -200,34 +264,22 @@ const AdminDashboard = () => {
           <Stack tokens={{ childrenGap: 8 }}>
             <Stack horizontal horizontalAlign="space-between">
               <Text variant="medium" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                System Health
-              </Text>
-              <Icon iconName="Health" styles={{ root: { color: '#107c10', fontSize: '20px' } }} />
-            </Stack>
-            <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#107c10' } }}>
-              {adminData.systemHealth}%
-            </Text>
-            <ProgressIndicator 
-              percentComplete={adminData.systemHealth / 100}
-              styles={{ progressBar: { backgroundColor: '#107c10' } }}
-            />
-          </Stack>
-        </div>
-
-        <div className={cardStyle} style={{ flex: '1 1 200px' }}>
-          <Stack tokens={{ childrenGap: 8 }}>
-            <Stack horizontal horizontalAlign="space-between">
-              <Text variant="medium" styles={{ root: { fontWeight: FontWeights.semibold } }}>
                 Total Users
               </Text>
               <Icon iconName="People" styles={{ root: { color: '#0078d4', fontSize: '20px' } }} />
             </Stack>
-            <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#0078d4' } }}>
-              {adminData.totalMembers + adminData.totalLibrarians}
-            </Text>
-            <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
-              {adminData.activeUsers} currently active
-            </Text>
+            {loading ? (
+              <ProgressIndicator />
+            ) : (
+              <>
+                <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#0078d4' } }}>
+                  {adminData.totalMembers + adminData.totalLibrarians}
+                </Text>
+                <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+                  {adminData.totalMembers} members, {adminData.totalLibrarians} staff
+                </Text>
+              </>
+            )}
           </Stack>
         </div>
 
@@ -239,12 +291,18 @@ const AdminDashboard = () => {
               </Text>
               <Icon iconName="ActivityFeed" styles={{ root: { color: '#ff8c00', fontSize: '20px' } }} />
             </Stack>
-            <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#ff8c00' } }}>
-              {adminData.dailyTransactions}
-            </Text>
-            <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
-              Books issued/returned today
-            </Text>
+            {loading ? (
+              <ProgressIndicator />
+            ) : (
+              <>
+                <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#ff8c00' } }}>
+                  {adminData.dailyTransactions}
+                </Text>
+                <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+                  Books issued/returned today
+                </Text>
+              </>
+            )}
           </Stack>
         </div>
 
@@ -252,31 +310,53 @@ const AdminDashboard = () => {
           <Stack tokens={{ childrenGap: 8 }}>
             <Stack horizontal horizontalAlign="space-between">
               <Text variant="medium" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                Storage Usage
+                Total Books
               </Text>
-              <Icon iconName="Database" styles={{ root: { color: '#d13438', fontSize: '20px' } }} />
+              <Icon iconName="BookAnswers" styles={{ root: { color: '#107c10', fontSize: '20px' } }} />
             </Stack>
-            <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#d13438' } }}>
-              {adminData.storageUsed}%
-            </Text>
-            <ProgressIndicator 
-              percentComplete={adminData.storageUsed / 100}
-              styles={{ progressBar: { backgroundColor: adminData.storageUsed > 80 ? '#d13438' : '#0078d4' } }}
-            />
+            {loading ? (
+              <ProgressIndicator />
+            ) : (
+              <>
+                <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#107c10' } }}>
+                  {adminData.totalBooks.toLocaleString()}
+                </Text>
+                <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+                  In library collection
+                </Text>
+              </>
+            )}
+          </Stack>
+        </div>
+
+        <div className={cardStyle} style={{ flex: '1 1 200px' }}>
+          <Stack tokens={{ childrenGap: 8 }}>
+            <Stack horizontal horizontalAlign="space-between">
+              <Text variant="medium" styles={{ root: { fontWeight: FontWeights.semibold } }}>
+                Outstanding Fines
+              </Text>
+              <Icon iconName="Warning" styles={{ root: { color: '#d13438', fontSize: '20px' } }} />
+            </Stack>
+            {loading ? (
+              <ProgressIndicator />
+            ) : (
+              <>
+                <Text variant="xxLarge" styles={{ root: { fontWeight: FontWeights.bold, color: '#d13438' } }}>
+                  ₹{adminData.outstandingFines.toLocaleString()}
+                </Text>
+                <Text variant="small" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
+                  Pending collection
+                </Text>
+              </>
+            )}
           </Stack>
         </div>
       </Stack>
 
       {/* System Alerts */}
-      {systemAlerts.some(alert => alert.severity === 'Critical') && (
-        <MessageBar messageBarType={MessageBarType.error}>
-          Critical system alerts require immediate attention. Check the System Monitoring section.
-        </MessageBar>
-      )}
-
-      {adminData.storageUsed > 80 && (
+      {adminData.outstandingFines > 1000 && (
         <MessageBar messageBarType={MessageBarType.warning}>
-          Storage usage is at {adminData.storageUsed}%. Consider archiving old data or expanding storage.
+          Outstanding fines are at ₹{adminData.outstandingFines.toLocaleString()}. Consider sending payment reminders.
         </MessageBar>
       )}
 
@@ -297,57 +377,101 @@ const AdminDashboard = () => {
           <Stack horizontal wrap tokens={{ childrenGap: 20 }}>
             <div className={cardStyle} style={{ flex: '1 1 300px' }}>
               <Stack tokens={{ childrenGap: 16 }}>
-                <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                  Library Statistics
-                </Text>
-                <Stack tokens={{ childrenGap: 12 }}>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Total Books</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                      {adminData.totalBooks.toLocaleString()}
-                    </Text>
-                  </Stack>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Total Members</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                      {adminData.totalMembers.toLocaleString()}
-                    </Text>
-                  </Stack>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Staff Members</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                      {adminData.totalLibrarians}
-                    </Text>
-                  </Stack>
+                <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+                  <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
+                    Library Statistics
+                  </Text>
+                  <Icon iconName="Library" styles={{ root: { color: '#0078d4', fontSize: '20px' } }} />
                 </Stack>
+                {loading ? (
+                  <ProgressIndicator label="Loading statistics..." />
+                ) : (
+                  <Stack tokens={{ childrenGap: 12 }}>
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="BookAnswers" styles={{ root: { color: '#0078d4', fontSize: '16px' } }} />
+                        <Text>Total Books</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#0078d4' } }}>
+                        {adminData.totalBooks.toLocaleString()}
+                      </Text>
+                    </Stack>
+                    <Separator />
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="People" styles={{ root: { color: '#107c10', fontSize: '16px' } }} />
+                        <Text>Total Members</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#107c10' } }}>
+                        {adminData.totalMembers.toLocaleString()}
+                      </Text>
+                    </Stack>
+                    <Separator />
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="Teamwork" styles={{ root: { color: '#ff8c00', fontSize: '16px' } }} />
+                        <Text>Staff Members</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#ff8c00' } }}>
+                        {adminData.totalLibrarians}
+                      </Text>
+                    </Stack>
+                  </Stack>
+                )}
               </Stack>
             </div>
 
             <div className={cardStyle} style={{ flex: '1 1 300px' }}>
               <Stack tokens={{ childrenGap: 16 }}>
-                <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                  Financial Overview
-                </Text>
-                <Stack tokens={{ childrenGap: 12 }}>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Monthly Revenue</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold, color: '#107c10' } }}>
-                      ${adminData.monthlyRevenue.toLocaleString()}
-                    </Text>
-                  </Stack>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Outstanding Fines</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold, color: '#d13438' } }}>
-                      $2,340
-                    </Text>
-                  </Stack>
-                  <Stack horizontal horizontalAlign="space-between">
-                    <Text>Collection Rate</Text>
-                    <Text styles={{ root: { fontWeight: FontWeights.semibold } }}>
-                      84.2%
-                    </Text>
-                  </Stack>
+                <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+                  <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold } }}>
+                    Financial Overview
+                  </Text>
+                  <Icon iconName="Money" styles={{ root: { color: '#107c10', fontSize: '20px' } }} />
                 </Stack>
+                {loading ? (
+                  <ProgressIndicator label="Loading financial data..." />
+                ) : (
+                  <Stack tokens={{ childrenGap: 12 }}>
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="PaymentCard" styles={{ root: { color: '#107c10', fontSize: '16px' } }} />
+                        <Text>Total Revenue</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#107c10' } }}>
+                        ₹{adminData.monthlyRevenue.toLocaleString()}
+                      </Text>
+                    </Stack>
+                    <Separator />
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="Warning" styles={{ root: { color: '#d13438', fontSize: '16px' } }} />
+                        <Text>Outstanding Fines</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#d13438' } }}>
+                        ₹{adminData.outstandingFines.toLocaleString()}
+                      </Text>
+                    </Stack>
+                    <Separator />
+                    <Stack horizontal horizontalAlign="space-between">
+                      <Stack horizontal tokens={{ childrenGap: 8 }} verticalAlign="center">
+                        <Icon iconName="BarChart4" styles={{ root: { color: '#0078d4', fontSize: '16px' } }} />
+                        <Text>Collection Rate</Text>
+                      </Stack>
+                      <Text styles={{ root: { fontWeight: FontWeights.bold, fontSize: '18px', color: '#0078d4' } }}>
+                        {adminData.collectionRate}%
+                      </Text>
+                    </Stack>
+                    <ProgressIndicator 
+                      percentComplete={adminData.collectionRate / 100}
+                      styles={{ 
+                        progressBar: { 
+                          backgroundColor: adminData.collectionRate >= 80 ? '#107c10' : adminData.collectionRate >= 50 ? '#ff8c00' : '#d13438' 
+                        } 
+                      }}
+                    />
+                  </Stack>
+                )}
               </Stack>
             </div>
           </Stack>

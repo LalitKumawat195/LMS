@@ -45,12 +45,19 @@ router.get('/my-stats', verifyToken, async (req, res) => {
       status: 'overdue'
     });
 
-    const fineTransactions = await Transaction.find({
+    // Calculate current fines for active overdue books only
+    const overdueTransactions = await Transaction.find({
       memberId: req.user.id,
-      fine: { $gt: 0 }
+      type: 'issue',
+      status: 'overdue'
     });
 
-    const totalFines = fineTransactions.reduce((sum, t) => sum + (t.fine || 0), 0);
+    let totalFines = 0;
+    overdueTransactions.forEach(transaction => {
+      const overdueDays = Math.ceil((new Date() - new Date(transaction.dueDate)) / (1000 * 60 * 60 * 24));
+      const currentFine = overdueDays * 10; // ₹10 per day
+      totalFines += currentFine;
+    });
 
     res.json({
       borrowedBooks: borrowed,

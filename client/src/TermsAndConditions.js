@@ -42,7 +42,7 @@ const TermsAndConditions = () => {
           </Stack>
           
           <Text variant="medium" styles={{ root: { color: isDark ? '#c8c6c4' : '#605e5c' } }}>
-            Last updated: January 2024
+            Last updated: February 2026
           </Text>
 
           <Separator />
@@ -122,6 +122,26 @@ const TermsAndConditions = () => {
                 We reserve the right to modify these terms at any time. Members will be notified of significant changes.
               </Text>
             </Stack>
+          </Stack>
+
+          <Separator />
+
+          <Stack tokens={{ childrenGap: 12 }} styles={{ root: { background: isDark ? '#323130' : '#f3f2f1', padding: '20px', borderRadius: '4px', border: `1px solid ${isDark ? '#484644' : '#e1dfdd'}` } }}>
+            <Text variant="large" styles={{ root: { fontWeight: FontWeights.semibold, color: isDark ? '#ffffff' : '#323130' } }}>
+              About This Project
+            </Text>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#e1dfdd' : '#323130', lineHeight: '1.6' } }}>
+              This Library Automation and Book Tracking System is developed by students of <strong>SM Shetty College, Powai</strong> as a Field Project for Mumbai University.
+            </Text>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#e1dfdd' : '#323130', lineHeight: '1.6', fontWeight: FontWeights.semibold } }}>
+              Development Team (Second Year BSc IT):
+            </Text>
+            <Text variant="medium" styles={{ root: { color: isDark ? '#e1dfdd' : '#323130', lineHeight: '1.8', paddingLeft: '20px' } }}>
+              1. Lalit Kumawat<br/>
+              2. Menka Rajak<br/>
+              3. Nikhil Kunder<br/>
+              4. Pratiksha Lad
+            </Text>
           </Stack>
 
           <Separator />

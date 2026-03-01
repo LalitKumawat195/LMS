@@ -57,26 +57,5 @@ npm start
 - Node.js + Express
 - MongoDB
 
-## Project Structure
-```
-LMS/
-├── client/          # React app
-├── server/          # Node.js API
-└── README.md
-```
-
-## Need Help?
-
-**MongoDB not connecting?**
-- Check your connection string
-- Make sure MongoDB is running
-
-**Port already in use?**
-```bash
-npx kill-port 5000
-npx kill-port 3000
-```
-
----
 
 Made with ❤️ for libraries

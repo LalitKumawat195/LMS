@@ -60,6 +60,7 @@ const UserManagement = () => {
   const [bulkAction, setBulkAction] = useState('');
   const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
   const [userForPasswordReset, setUserForPasswordReset] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [advancedSearchFilters, setAdvancedSearchFilters] = useState({
     name: '',
@@ -363,18 +364,26 @@ const UserManagement = () => {
   };
 
   const resetUserPassword = async (userId) => {
+    if (!newPassword || newPassword.length < 6) {
+      error('Password must be at least 6 characters long');
+      return;
+    }
+    
     setLoading(true);
     try {
       const response = await fetch(`http://localhost:5000/api/users/${userId}/reset-password`, {
         method: 'PATCH',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        },
+        body: JSON.stringify({ newPassword })
       });
       
       const data = await response.json();
       if (response.ok) {
         success(data.message);
+        setNewPassword('');
       } else {
         error(data.message || 'Failed to reset password');
       }
@@ -1217,13 +1226,25 @@ const UserManagement = () => {
       {/* Password Reset Dialog */}
       <Dialog
         hidden={!showPasswordResetDialog}
-        onDismiss={() => setShowPasswordResetDialog(false)}
+        onDismiss={() => {
+          setShowPasswordResetDialog(false);
+          setNewPassword('');
+        }}
         dialogContentProps={{
           type: DialogType.normal,
           title: 'Reset Password',
-          subText: `Reset password for ${userForPasswordReset?.name}? The new password will be 'password123'.`
+          subText: `Enter new password for ${userForPasswordReset?.name}`
         }}
       >
+        <TextField
+          label="New Password"
+          type="password"
+          required
+          value={newPassword}
+          onChange={(_, value) => setNewPassword(value || '')}
+          placeholder="Enter new password (min 6 characters)"
+          errorMessage={newPassword && newPassword.length < 6 ? 'Password must be at least 6 characters' : ''}
+        />
         <DialogFooter>
           <PrimaryButton
             text="Reset Password"
@@ -1232,9 +1253,12 @@ const UserManagement = () => {
               setShowPasswordResetDialog(false);
               setUserForPasswordReset(null);
             }}
-            disabled={loading}
+            disabled={loading || !newPassword || newPassword.length < 6}
           />
-          <DefaultButton text="Cancel" onClick={() => setShowPasswordResetDialog(false)} />
+          <DefaultButton text="Cancel" onClick={() => {
+            setShowPasswordResetDialog(false);
+            setNewPassword('');
+          }} />
         </DialogFooter>
       </Dialog>
 

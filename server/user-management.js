@@ -137,20 +137,24 @@ router.patch('/:id/toggle-status', async (req, res) => {
 // Reset user password
 router.patch('/:id/reset-password', async (req, res) => {
   try {
+    const { newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const newPassword = 'password123';
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     user.password = hashedPassword;
     await user.save();
 
-    // In a real application, you would send an email here
-    res.json({ message: 'Password reset successfully. New password: password123' });
+    res.json({ message: 'Password reset successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

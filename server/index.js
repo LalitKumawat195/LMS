@@ -43,6 +43,8 @@ app.use('/api/transactions', require('./transactions'));
 app.use('/api/chats', require('./chats'));
 app.use('/api/wishlist', require('./wishlist-routes'));
 app.use('/api/reservations', require('./reservation-routes'));
+app.use('/api/admin-stats', require('./admin-stats'));
+app.use('/api/admin-actions', require('./admin-actions'));
 app.use('/api/test', require('./test'));
 
 mongoose.connection.on('connected', async () => {
